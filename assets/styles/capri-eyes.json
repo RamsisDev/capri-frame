@@ -3,12 +3,12 @@
     "body": "#060606",
     "rim": "#11e965",
     "mask": "#11e965",
-    "eyes": "#024399",
+    "eyes": "#1178f1",
     "hair": "#ff3df0",
     "tip": "#11e965",
     "eye_shell": "#060606",
     "eye_ring": "#11e965",
-    "pupil": "#9a9a9a"
+    "pupil": "#e2eae9"
   },
   "outline": 1.5,
   "glow": 0,

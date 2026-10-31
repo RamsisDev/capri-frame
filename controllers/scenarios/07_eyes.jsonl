@@ -3,15 +3,17 @@
 {"s":"face","set":{"expr":"neutral","gaze":[0,0]}}
 {"s":"morph","set":{"core":"eyes"}}
 {"wait":2500}
-# Mirada: derecha, izquierda, arriba, abajo y diagonales. Azul y gris se mueven juntos sin salir del anillo; silueta y anillo quietos
+# Mirada: derecha, izquierda, arriba, abajo y diagonales. Anillo, azul y centro se mueven juntos; solo el círculo central debe caber entero en la almendra abierta
 {"s":"face","set":{"gaze":[1,0]}}
 {"wait":700,"s":"face","set":{"gaze":[-1,0]}}
 {"wait":700,"s":"face","set":{"gaze":[0,1]}}
 {"wait":700,"s":"face","set":{"gaze":[0,-1]}}
 {"wait":700,"s":"face","set":{"gaze":[1,1]}}
 {"wait":700,"s":"face","set":{"gaze":[-1,-1]}}
+{"wait":700,"s":"face","set":{"gaze":[-1,1]}}
+{"wait":700,"s":"face","set":{"gaze":[1,-1]}}
 {"wait":700,"s":"face","set":{"gaze":[0,0]}}
-# Guiño del ojo izquierdo: los párpados recortan azul y gris hasta ocultarlos; el ojo derecho sigue parpadeando solo
+# Guiño del ojo izquierdo: la almendra se cierra a una raya horizontal y oculta todos los círculos; el ojo derecho sigue parpadeando solo
 {"wait":900,"s":"face","set":{"eye.l.open":0}}
 {"wait":1500,"s":"face","set":{"eye.l.open":1}}
 # Guiño del ojo derecho
@@ -19,7 +21,7 @@
 {"wait":1500,"s":"face","set":{"eye.r.open":1}}
 # Apertura parcial (0.5 y 0.25): los círculos se recortan, no se aplastan
 {"wait":700,"s":"face","set":{"eye.l.open":0.5,"eye.r.open":0.25}}
-# Cierre completo: solo quedan silueta, disco negro y anillo
+# Cierre completo: solo quedan dos rayas horizontales, sin anillo, iris ni centro
 {"wait":1500,"s":"face","set":{"eye.l.open":0,"eye.r.open":0}}
 {"wait":1500,"s":"face","set":{"eye.l.open":1,"eye.r.open":1}}
 # Tamaños: izquierdo 1.35, derecho 0.7. Disco, iris y centro escalan entero; la silueta crece la mitad; nada sale de la placa

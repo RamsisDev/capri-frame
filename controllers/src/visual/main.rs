@@ -202,7 +202,7 @@ impl Controller {
             }
         });
         ui.small(
-            "Mueve el iris y el centro dentro del anillo; Capri limita el vector a longitud 1.",
+            "Mueve juntos el anillo, el azul y el centro. El círculo central marca el límite dentro del óvalo.",
         );
     }
 

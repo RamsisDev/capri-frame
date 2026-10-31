@@ -63,9 +63,13 @@ cargo run -p capri-ctl --features visual --bin capri-eyes -- --port 7777
 Opciones: `--spawn`, `--port <puerto>` y `--style <archivo.json>` (estilo solo con `--spawn`).
 Para las pruebas automáticas usa `make check` o `cargo test --workspace --all-features`.
 
-Verificación manual: cerrar ambos ojos (sin iris visible), probar cada guiño, desligar tamaños,
+Verificación manual: cerrar ambos ojos (dos rayas horizontales, sin círculos visibles), probar cada guiño, desligar tamaños,
 mover la mirada a extremos, comparar núcleos y guardar/reproducir un ajuste.
-El anillo y la silueta del ojo permanecen al cerrar los párpados; se recortan el iris y el centro.
+La almendra completa se cierra; el anillo, el iris y el centro quedan detrás de su contorno y se
+recortan sin aplastarse, también durante el parpadeo automático.
+La mirada mueve juntos el anillo verde, el azul y el centro. En los extremos, el círculo
+central debe seguir entero dentro de la almendra abierta; el anillo y el azul pueden quedar
+parcialmente ocultos por el contorno.
 
 ## Escenarios de secuencias
 

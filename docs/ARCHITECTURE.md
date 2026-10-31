@@ -129,15 +129,20 @@ los núcleos (no hay interruptor en `morph`). Capas, de atrás hacia delante:
 placa 8.08 × 3.31 R (2.44:1) · centros a ±2.03 R, 0.365 R bajo el centro de la placa
 silueta   almendra (dos arcos entre esquinas en punta) + púa superior (hacia el centro)
           + púa inferior (hacia fuera) + talón en la esquina interior
-anillo    0.905 R .. 1 R, mínimo 1.1 px para seguir legible a tamaño normal
-iris      0.585 R          ┐ se desplazan juntos con `gaze` (máx. 0.27 R, siempre dentro del anillo)
-centro    0.305 R          ┘ y los recorta una ventana de párpados que se cierra con `open`
+anillo    0.905 R .. 1 R   ┐ mínimo 1.1 px para seguir legible a tamaño normal
+iris      0.585 R         │ los tres se desplazan juntos con `gaze`, siempre concéntricos
+centro    0.305 R         ┘ y quedan recortados dentro de la almendra
 ```
 
-- `open` (× parpadeo de idle) cierra la ventana de párpados: los círculos se recortan, no se
-  aplastan. Con `open = 0` no asoma nada del iris ni del centro.
+- `open` (× parpadeo de idle) cierra toda la almendra y sus púas hacia una raya horizontal,
+  sin curvatura. El anillo, el iris y el centro conservan su forma detrás del contorno y se
+  recortan por la apertura de la almendra. Con `open = 0` solo queda la raya, sin círculos visibles.
 - `size` escala disco, anillo, iris y centro; la silueta crece la mitad. Todo el ojo queda
   recortado dentro de la placa.
+- `gaze` alcanza el borde de la almendra abierta cuando su longitud llega a 1. El único
+  límite de recorrido es que el círculo central quepa entero (con margen de antialias);
+  el anillo y el azul pueden ocultarse tras el contorno. El límite se calcula por ojo según
+  su tamaño y dirección. Cerrar los párpados oculta los círculos sin desplazar la mirada.
 - Las proporciones son constantes al principio de `face.wgsl`, ajustadas contra la imagen de
   referencia. Los colores vienen del estilo (`mask`, `eye_shell`, `eye_ring`, `eyes`, `pupil`).
 - Halo y brillo propios de la cara escalan con `style.glow`: con `glow: 0` los colores salen planos.
