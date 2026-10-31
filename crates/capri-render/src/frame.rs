@@ -21,7 +21,7 @@ pub struct Frame {
     pub eyes: [f32; 4],
     /// brillo máscara, boca abierta (incluye voz), curva boca, tamaño ojo izq
     pub face: [f32; 4],
-    /// tamaño ojo der, nivel de voz, -, -
+    /// tamaño ojo der, nivel de voz, curva del ojo al cerrar, -
     pub face2: [f32; 4],
     /// cuello, inclinación torso, brazo izq, brazo der (rad)
     pub limbs0: [f32; 4],
@@ -69,7 +69,7 @@ impl Frame {
                 f.mouth.curve.value,
                 f.eye_left.size.value,
             ],
-            face2: [f.eye_right.size.value, voice, 0.0, 0.0],
+            face2: [f.eye_right.size.value, voice, f.lid.value, 0.0],
             limbs0: [rad(s.neck.value), rad(s.torso.lean.value), rad(s.arm_left.value), rad(s.arm_right.value)],
             limbs1: [rad(s.leg_left.value), rad(s.leg_right.value), s.opacity.value.clamp(0.0, 1.0), 0.0],
             ext: [e.spikes.amount.value, e.spikes.length.value, e.fragments.amount.value, e.fragments.spread.value],

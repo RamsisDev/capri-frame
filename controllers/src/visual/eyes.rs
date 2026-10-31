@@ -6,6 +6,8 @@ use serde_json::{Value, json};
 pub struct Eyes {
     pub open: [f32; 2],
     pub size: [f32; 2],
+    /// Curva al cerrar: -1 triste, 0 neutro, 1 feliz.
+    pub lid: f32,
     pub gaze: [f32; 2],
     pub core: &'static str,
     pub scale: f32,
@@ -16,6 +18,7 @@ impl Default for Eyes {
         Self {
             open: [1.0; 2],
             size: [1.0; 2],
+            lid: 0.0,
             gaze: [0.0; 2],
             core: "eyes",
             scale: 2.0,
@@ -33,6 +36,7 @@ impl Eyes {
             {"s": "face", "set": {
                 "eye.l.open": decimal(self.open[0]), "eye.r.open": decimal(self.open[1]),
                 "eye.l.size": decimal(self.size[0]), "eye.r.size": decimal(self.size[1]),
+                "eye.lid": decimal(self.lid),
                 "gaze.x": decimal(self.gaze[0]), "gaze.y": decimal(self.gaze[1])
             }}
         ])
@@ -63,6 +67,7 @@ mod tests {
             open: [0.0, 0.4],
             size: [0.5, 1.5],
             gaze: [-1.0, 0.7],
+            lid: -1.0,
             ..Eyes::default()
         };
         let mut state = State::default();
@@ -80,6 +85,7 @@ mod tests {
         assert_eq!(face.eye_right.open.target(), 0.4);
         assert_eq!(face.eye_left.size.target(), 0.5);
         assert_eq!(face.eye_right.size.target(), 1.5);
+        assert_eq!(face.lid.target(), -1.0);
         assert_eq!(face.gaze_x.target(), -1.0);
         assert_eq!(face.gaze_y.target(), 0.7);
         assert_eq!(state.body.transform.shape_morph.eyes.target(), 1.0);

@@ -10,6 +10,8 @@ pub struct Face {
     pub eye_left: Eye,
     pub eye_right: Eye,
     pub mouth: Mouth,
+    /// Curva del ojo al cerrarse: -1 = triste (U), 0 = raya recta, 1 = feliz (∩).
+    pub lid: Param,
     /// Dirección de la mirada, -1..1.
     pub gaze_x: Param,
     pub gaze_y: Param,
@@ -45,6 +47,7 @@ impl Default for Face {
             mask: Mask { glow: Param::new(0.6) },
             eye_left: eye(),
             eye_right: eye(),
+            lid: Param::new(0.0),
             mouth: Mouth {
                 open: Param::new(0.0),
                 curve: Param::new(0.0),
@@ -63,6 +66,7 @@ impl Node for Face {
         f(F, "eye.r.open", &mut self.eye_right.open);
         f(F, "eye.l.size", &mut self.eye_left.size);
         f(F, "eye.r.size", &mut self.eye_right.size);
+        f(F, "eye.lid", &mut self.lid);
         f(F, "gaze.x", &mut self.gaze_x);
         f(F, "gaze.y", &mut self.gaze_y);
         f(F, "mouth.open", &mut self.mouth.open);

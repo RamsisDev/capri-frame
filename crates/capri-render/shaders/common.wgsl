@@ -8,7 +8,7 @@ struct Frame {
   cores: vec4<f32>,    // full, eyes, bolt, -
   eyes: vec4<f32>,     // abierto izq, abierto der, mirada x, mirada y
   face: vec4<f32>,     // brillo placa, boca abierta, curva boca (sin dibujar), tamaño ojo izq
-  face2: vec4<f32>,    // tamaño ojo der, voz, -, -
+  face2: vec4<f32>,    // tamaño ojo der, voz, curva al cerrar, -
   limbs0: vec4<f32>,   // cuello, torso, brazo izq, brazo der
   limbs1: vec4<f32>,   // pierna izq, pierna der, opacidad silueta, -
   ext: vec4<f32>,      // púas, largo púas, fragmentos, dispersión

@@ -23,6 +23,19 @@ const SHELL_SIZE_FOLLOW: f32 = 0.5;                       // la silueta crece la
 const LID_HALF: f32 = 0.055;                              // media altura de la raya horizontal cerrada
 const LID_MIN_PX: f32 = 1.1;                              // grosor mínimo del párpado cerrado
 
+// Cierre con curva (`eye.lid`): 1 = feliz, arco ∩; -1 = triste, la curvatura opuesta (U).
+// El arco es una parábola, más alta hacia la esquina exterior (como la almendra inclinada); el
+// contorno cerrado es una medialuna en punta y las dos púas quedan alineadas cruzándola en X.
+const LID_PEAK_X: f32 = -0.35;                            // x del punto más alto (y más grueso)
+const LID_PEAK: f32 = 0.6;                                // altura del arco en ese punto
+const LID_K: f32 = 0.3;                                   // apertura de la parábola
+const LID_CRESCENT: f32 = 0.14;                           // media altura máxima de la medialuna
+const LID_CROSS_X: f32 = 0.0;                             // donde la raya de las púas cruza el arco
+const LID_SPIKE_DIR = vec2<f32>(0.617, 0.787);            // raya de las púas: hacia el centro y arriba
+const LID_SPIKE_TOP: f32 = 1.17;                          // largo de la púa superior desde el cruce
+const LID_SPIKE_LOW: f32 = 0.9;                           // largo de la púa inferior desde el cruce
+const LID_SPIKE_HALF: f32 = 0.11;                         // media anchura de las púas en el cruce
+
 // Silueta: almendra (dos arcos entre dos esquinas en punta) + tres triángulos: las dos púas
 // y el talón que afila la esquina interior. Ajustada contra la referencia (~2 % de error de área).
 const SHELL_OUTER = vec2<f32>(-1.702, 1.266);             // esquina exterior, arriba
@@ -65,12 +78,40 @@ fn sd_eye_lens(e: vec2<f32>, opening: f32) -> f32 {
              sd_eye_arc(e, SHELL_OUTER, SHELL_INNER, SHELL_SAG_BOTTOM, opening));
 }
 
-fn sd_eye_shell(e: vec2<f32>, opening: f32) -> f32 {
+fn sd_eye_heel(e: vec2<f32>, opening: f32) -> f32 {
   let squash = vec2<f32>(1.0, opening);
-  let thorns = min(min(sd_triangle(e, THORN_TOP_TIP * squash, THORN_TOP_A * squash, THORN_TOP_B * squash),
-                       sd_triangle(e, THORN_LOW_TIP * squash, THORN_LOW_A * squash, THORN_LOW_B * squash)),
-                   sd_triangle(e, HEEL_TIP * squash, HEEL_A * squash, HEEL_B * squash));
-  return min(sd_eye_lens(e, opening), thorns);
+  return sd_triangle(e, HEEL_TIP * squash, HEEL_A * squash, HEEL_B * squash);
+}
+
+// Altura del arco cerrado (curva +1) y su pendiente.
+fn lid_arc(x: f32) -> f32 {
+  return LID_PEAK - LID_K * (x - LID_PEAK_X) * (x - LID_PEAK_X);
+}
+
+// Grosor relativo de la medialuna: 1 en el punto más alto, 0 en las dos esquinas.
+fn lid_taper(x: f32) -> f32 {
+  let reach = select(LID_PEAK_X - SHELL_OUTER.x, HEEL_TIP.x - LID_PEAK_X, x > LID_PEAK_X);
+  let t = (x - LID_PEAK_X) / reach;
+  return max(1.0 - t * t, 0.0);
+}
+
+// Vértice de una púa. Sin curva se aplasta con la almendra (como siempre); con curva viaja a
+// su sitio en la raya que cruza el arco cerrado.
+fn lid_vertex(v: vec2<f32>, closed: vec2<f32>, open: f32, opening: f32, lid: f32) -> vec2<f32> {
+  let neutral = vec2<f32>(v.x, v.y * opening + (1.0 - open) * lid * lid_arc(v.x));
+  return mix(neutral, mix(closed, v, open), abs(lid));
+}
+
+fn sd_eye_thorns(u: vec2<f32>, open: f32, opening: f32, lid: f32) -> f32 {
+  let meet = vec2<f32>(LID_CROSS_X, lid * lid_arc(LID_CROSS_X));
+  let side = vec2<f32>(-LID_SPIKE_DIR.y, LID_SPIKE_DIR.x) * LID_SPIKE_HALF;
+  let top = sd_triangle(u, lid_vertex(THORN_TOP_TIP, meet + LID_SPIKE_DIR * LID_SPIKE_TOP, open, opening, lid),
+                        lid_vertex(THORN_TOP_A, meet + side, open, opening, lid),
+                        lid_vertex(THORN_TOP_B, meet - side, open, opening, lid));
+  let low = sd_triangle(u, lid_vertex(THORN_LOW_TIP, meet - LID_SPIKE_DIR * LID_SPIKE_LOW, open, opening, lid),
+                        lid_vertex(THORN_LOW_A, meet + side, open, opening, lid),
+                        lid_vertex(THORN_LOW_B, meet - side, open, opening, lid));
+  return min(top, low);
 }
 
 // Recorrido hasta que el círculo central toca un arco. Restar su radio al disco
@@ -98,10 +139,19 @@ fn eye_gaze_offset(gaze: vec2<f32>, pupil_radius: f32) -> vec2<f32> {
 // Un ojo. `p` y `px` en unidades R, espacio de ojo sin escalar; `gaze` ya espejado y con
 // longitud <= 1; `open` ya incluye el parpadeo. Se cierra la almendra completa hacia una
 // raya horizontal; los círculos conservan su forma detrás de ella y solo se recortan.
-fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, px: f32) -> vec4<f32> {
+// `lid` curva la silueta al cerrarse (1 = feliz ∩, -1 = triste U): el espacio de la silueta se
+// dobla con una parábola que crece con el cierre, así púas y almendra se doblan juntas.
+fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, lid: f32, px: f32) -> vec4<f32> {
   var col = vec4<f32>(0.0);
   let shell_k = 1.0 + SHELL_SIZE_FOLLOW * (size - 1.0);
-  let s = p / shell_k;
+  let u = p / shell_k;                    // espacio de silueta
+  // Con curva, la almendra se dobla sobre el arco a medida que cierra: `s` es el espacio
+  // doblado. El doblez estira el campo de distancia; `bend_k` lo compensa.
+  let lid_c = clamp(lid, -1.0, 1.0);
+  let bend = lid_c * (1.0 - open);
+  let s = vec2<f32>(u.x, u.y - bend * lid_arc(u.x));
+  let slope = -2.0 * LID_K * bend * (u.x - LID_PEAK_X);
+  let bend_k = inverseSqrt(1.0 + slope * slope);
   // La mirada solo la limita el círculo central contra la almendra abierta, con
   // margen de antialias. El parpadeo tapa la mirada sin desplazarla ni deformarla.
   let offset = eye_gaze_offset(gaze, (PUPIL_R * size + px) / shell_k) * shell_k;
@@ -114,13 +164,20 @@ fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, px: f32) -> ve
   let opening = max(open, 0.02);
   let closing = min(open / 0.02, 1.0);
   let d_line = sd_capsule(s, vec2<f32>(SHELL_OUTER.x, 0.0), vec2<f32>(HEEL_TIP.x, 0.0), 0.0, 0.0);
-  let closed_half = max(LID_HALF * shell_k, 0.5 * LID_MIN_PX * px);
-  let d_shell = mix(d_line, sd_eye_shell(s, opening), closing) * shell_k - (1.0 - open) * closed_half;
+  let line_half = max(LID_HALF * shell_k, 0.5 * LID_MIN_PX * px);
+  let closed_half = mix(line_half, LID_CRESCENT * shell_k * lid_taper(s.x), abs(lid_c));
+  let d_body = mix(d_line, min(sd_eye_lens(s, opening), sd_eye_heel(s, opening)), closing) * shell_k * bend_k
+    - (1.0 - open) * closed_half;
+  // Sin curva las púas se funden con la raya en el último 2 % (como la almendra); con curva
+  // siguen enteras cruzando el arco.
+  let d_spikes = sd_eye_thorns(u, open, opening, lid_c) * shell_k - (1.0 - open) * (1.0 - abs(lid_c)) * line_half;
+  let d_thorns = mix(d_body, d_spikes, max(closing, abs(lid_c)));
+  let d_shell = min(d_body, d_thorns);
   col = over(col, vec4<f32>(F.col_shell.rgb, aa(d_shell, px)));
 
   // Apertura dentro de la almendra, sin las púas. Un margen de medio píxel deja el
   // contorno delante y garantiza que con open = 0 no asome ningún círculo.
-  let d_lid = mix(d_line, sd_eye_lens(s, opening), closing) * shell_k + 0.5 * px;
+  let d_lid = mix(d_line, sd_eye_lens(s, opening), closing) * shell_k * bend_k + 0.5 * px;
   let pxe = px / size;
 
   // El anillo pertenece al iris: se desplaza con él y puede ocultarse tras el contorno.
@@ -167,7 +224,7 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
     let open = clamp(select(F.eyes.x, F.eyes.y, right), 0.0, 1.0) * (1.0 - blink);
     let size = max(select(F.face.w, F.face2.x, right), 0.05);
     let e = (u - vec2<f32>(side * EYE_X, EYE_Y)) * mirror;
-    let eye = eye_layer(e, size, gaze * mirror, open, pxu);
+    let eye = eye_layer(e, size, gaze * mirror, open, F.face2.z, pxu);
     col = over(col, vec4<f32>(eye.rgb, eye.a * plate)); // recortado a la placa (ojos ampliados incluidos)
   }
   return col;

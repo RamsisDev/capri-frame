@@ -8,19 +8,19 @@ type Preset = &'static [(&'static str, f32)];
 pub fn expr(name: &str) -> Option<Preset> {
     Some(match name {
         "neutral" => &[("eye.l.open", 1.0), ("eye.r.open", 1.0), ("eye.l.size", 1.0), ("eye.r.size", 1.0),
-                       ("mouth.open", 0.0), ("mouth.curve", 0.0), ("mask.glow", 0.6)],
+                       ("mouth.open", 0.0), ("mouth.curve", 0.0), ("eye.lid", 0.0), ("mask.glow", 0.6)],
         "focus" => &[("eye.l.open", 0.55), ("eye.r.open", 0.55), ("eye.l.size", 0.9), ("eye.r.size", 0.9),
-                     ("mouth.open", 0.0), ("mouth.curve", 0.0), ("mask.glow", 0.8)],
+                     ("mouth.open", 0.0), ("mouth.curve", 0.0), ("eye.lid", 0.0), ("mask.glow", 0.8)],
         "happy" => &[("eye.l.open", 0.35), ("eye.r.open", 0.35), ("eye.l.size", 1.0), ("eye.r.size", 1.0),
-                     ("mouth.open", 0.2), ("mouth.curve", 1.0), ("mask.glow", 0.9)],
+                     ("mouth.open", 0.2), ("mouth.curve", 1.0), ("eye.lid", 1.0), ("mask.glow", 0.9)],
         "angry" => &[("eye.l.open", 0.45), ("eye.r.open", 0.45), ("eye.l.size", 0.8), ("eye.r.size", 0.8),
-                     ("mouth.open", 0.1), ("mouth.curve", -0.8), ("mask.glow", 1.0)],
+                     ("mouth.open", 0.1), ("mouth.curve", -0.8), ("eye.lid", 0.0), ("mask.glow", 1.0)],
         "sad" => &[("eye.l.open", 0.6), ("eye.r.open", 0.6), ("eye.l.size", 1.0), ("eye.r.size", 1.0),
-                   ("mouth.open", 0.0), ("mouth.curve", -1.0), ("mask.glow", 0.3)],
+                   ("mouth.open", 0.0), ("mouth.curve", -1.0), ("eye.lid", -1.0), ("mask.glow", 0.3)],
         "surprised" => &[("eye.l.open", 1.0), ("eye.r.open", 1.0), ("eye.l.size", 1.35), ("eye.r.size", 1.35),
-                         ("mouth.open", 0.8), ("mouth.curve", 0.0), ("mask.glow", 1.0)],
+                         ("mouth.open", 0.8), ("mouth.curve", 0.0), ("eye.lid", 0.0), ("mask.glow", 1.0)],
         "sleep" => &[("eye.l.open", 0.0), ("eye.r.open", 0.0), ("eye.l.size", 1.0), ("eye.r.size", 1.0),
-                     ("mouth.open", 0.0), ("mouth.curve", 0.0), ("mask.glow", 0.15)],
+                     ("mouth.open", 0.0), ("mouth.curve", 0.0), ("eye.lid", 0.0), ("mask.glow", 0.15)],
         _ => return None,
     })
 }

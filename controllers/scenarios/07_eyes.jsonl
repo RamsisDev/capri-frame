@@ -28,6 +28,11 @@
 {"wait":900,"s":"face","set":{"eye.l.size":1.35,"eye.r.size":0.7}}
 {"wait":1500,"s":"face","set":{"eye.l.size":0.7,"eye.r.size":1.35}}
 {"wait":1500,"s":"face","set":{"eye.l.size":1,"eye.r.size":1}}
+# Cierre con curva: neutro (raya), feliz (arco ∩ con las púas en X), triste (U), y abrir
+{"wait":900,"s":"face","set":{"eye.l.open":0,"eye.r.open":0,"eye.lid":0}}
+{"wait":1200,"s":"face","set":{"eye.lid":1}}
+{"wait":1200,"s":"face","set":{"eye.lid":-1}}
+{"wait":1200,"s":"face","set":{"eye.l.open":1,"eye.r.open":1,"eye.lid":0}}
 # Presets sobre la base nueva: surprised, happy, angry, sleep, neutral
 {"wait":900,"s":"face","set":{"expr":"surprised"}}
 {"wait":1100,"s":"face","set":{"expr":"happy"}}

@@ -120,7 +120,6 @@ impl Controller {
         ui.horizontal_wrapped(|ui| {
             for (label, open) in [
                 ("Abrir", [1.0, 1.0]),
-                ("Cerrar", [0.0, 0.0]),
                 ("A medias", [0.5, 0.5]),
                 ("Guiño izq.", [0.0, 1.0]),
                 ("Guiño der.", [1.0, 0.0]),
@@ -129,6 +128,24 @@ impl Controller {
                     self.eyes.open = open;
                 }
             }
+        });
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Cerrar:");
+            for (label, lid) in [("Neutro", 0.0), ("Feliz", 1.0), ("Triste", -1.0)] {
+                if ui.button(label).clicked() {
+                    self.eyes.open = [0.0, 0.0];
+                    self.eyes.lid = lid;
+                }
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.monospace("face → eye.lid");
+            ui.add(
+                egui::Slider::new(&mut self.eyes.lid, -1.0..=1.0)
+                    .step_by(0.01)
+                    .fixed_decimals(2)
+                    .text("Curva al cerrar · -1 triste / 1 feliz"),
+            );
         });
         ui.add_space(8.0);
         ui.columns(2, |columns| {
@@ -174,19 +191,19 @@ impl Controller {
 
     fn gaze_controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Mirada");
-        ui.columns(2, |columns| {
-            for (i, ui) in columns.iter_mut().enumerate() {
-                ui.monospace(if i == 0 {
-                    "face → gaze.x"
-                } else {
-                    "face → gaze.y"
-                });
-                ui.add(
-                    egui::Slider::new(&mut self.eyes.gaze[i], -1.0..=1.0)
-                        .step_by(0.01)
-                        .fixed_decimals(2),
-                );
-            }
+        ui.horizontal(|ui| {
+            gaze_pad(ui, &mut self.eyes.gaze);
+            ui.vertical(|ui| {
+                for (i, name) in ["face → gaze.x", "face → gaze.y"].into_iter().enumerate() {
+                    ui.monospace(name);
+                    ui.add(
+                        egui::Slider::new(&mut self.eyes.gaze[i], -1.0..=1.0)
+                            .step_by(0.01)
+                            .fixed_decimals(2),
+                    );
+                }
+                ui.small("Arrastra dentro del círculo; doble clic centra.");
+            });
         });
         ui.horizontal_wrapped(|ui| {
             for (label, gaze) in [
@@ -201,6 +218,8 @@ impl Controller {
                 }
             }
         });
+        // Los sliders también quedan limitados al círculo.
+        clamp_to_circle(&mut self.eyes.gaze);
         ui.small(
             "Mueve juntos el anillo, el azul y el centro. El círculo central marca el límite dentro del óvalo.",
         );
@@ -321,6 +340,50 @@ impl eframe::App for Controller {
             self.connection.set(self.eyes.json());
         }
     }
+}
+
+/// Mantiene la mirada dentro del círculo unitario y la redondea a 0.01.
+fn clamp_to_circle(gaze: &mut [f32; 2]) {
+    let len = (gaze[0] * gaze[0] + gaze[1] * gaze[1]).sqrt();
+    if len > 1.0 {
+        *gaze = gaze.map(|v| v / len);
+    }
+    // Truncar (no redondear) para no salirse del círculo.
+    *gaze = gaze.map(|v| (v * 100.0).trunc() / 100.0);
+}
+
+/// Cuadro XY para la mirada: x a la derecha, y hacia arriba, ambos en -1..=1.
+fn gaze_pad(ui: &mut egui::Ui, gaze: &mut [f32; 2]) {
+    let size = egui::vec2(160.0, 160.0);
+    let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
+    let rect = response.rect;
+    if response.double_clicked() {
+        *gaze = [0.0, 0.0];
+    } else if let Some(pos) = response.interact_pointer_pos() {
+        let x = (pos.x - rect.center().x) / (rect.width() / 2.0);
+        let y = (rect.center().y - pos.y) / (rect.height() / 2.0);
+        *gaze = [x, y];
+    }
+    clamp_to_circle(gaze);
+
+    let visuals = ui.visuals();
+    let grid = egui::Stroke::new(1.0, visuals.widgets.noninteractive.bg_stroke.color);
+    painter.rect_filled(rect, 4.0, visuals.extreme_bg_color);
+    painter.line_segment([rect.center_top(), rect.center_bottom()], grid);
+    painter.line_segment([rect.left_center(), rect.right_center()], grid);
+    painter.circle_stroke(rect.center(), rect.width() / 2.0, grid);
+    painter.rect_stroke(rect, 4.0, grid, egui::StrokeKind::Inside);
+
+    let dot = egui::pos2(
+        rect.center().x + gaze[0] * rect.width() / 2.0,
+        rect.center().y - gaze[1] * rect.height() / 2.0,
+    );
+    let color = if response.hovered() || response.dragged() {
+        Color32::WHITE
+    } else {
+        visuals.selection.bg_fill
+    };
+    painter.circle_filled(dot, 7.0, color);
 }
 
 fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
