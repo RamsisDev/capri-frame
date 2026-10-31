@@ -1,0 +1,15 @@
+# CORES · full → eyes: el cuerpo se disuelve y quedan solo los ojos (sin placa), más grandes y brillantes
+{"s":"morph","set":{"core":"eyes"}}
+{"wait":2000}
+# eyes + mask: aparece la placa verde alrededor de los ojos
+{"s":"morph","set":{"core":"eyes","mask":true}}
+{"wait":2000}
+# bolt: rayo en zigzag con fragmentos orbitando, ojos arriba
+{"s":"morph","set":{"core":"bolt"}}
+{"wait":2500}
+# Valores crudos: mitad cuerpo, mitad rayo (la entidad mezcla núcleos a gusto)
+{"s":"morph","set":{"core.full":0.5,"core.bolt":0.5,"mask":1}}
+{"wait":2000}
+# Vuelta a full
+{"s":"morph","set":{"core":"full"}}
+{"wait":1500}

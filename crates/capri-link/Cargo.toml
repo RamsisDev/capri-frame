@@ -1,0 +1,9 @@
+[package]
+name = "capri-link"
+version.workspace = true
+edition.workspace = true
+description = "Servidor WebSocket local: recibe streams y los entrega al cuerpo"
+
+[dependencies]
+capri-protocol.workspace = true
+tungstenite.workspace = true

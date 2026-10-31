@@ -1,0 +1,18 @@
+# FACE · 2 s sin datos: parpadea y respira sola (idle)
+{"wait":2000}
+# Mirada: derecha → izquierda-arriba → centro
+{"s":"face","set":{"gaze":[1,0]}}
+{"wait":700,"s":"face","set":{"gaze":[-1,0.6]}}
+{"wait":700,"s":"face","set":{"gaze":[0,0]}}
+# Presets de expresión (1 s cada uno): focus, happy, angry, sad, surprised, sleep, neutral
+{"wait":800,"s":"face","set":{"expr":"focus"}}
+{"wait":1000,"s":"face","set":{"expr":"happy"}}
+{"wait":1000,"s":"face","set":{"expr":"angry"}}
+{"wait":1000,"s":"face","set":{"expr":"sad"}}
+{"wait":1000,"s":"face","set":{"expr":"surprised"}}
+{"wait":1000,"s":"face","set":{"expr":"sleep"}}
+{"wait":1000,"s":"face","set":{"expr":"neutral"}}
+# Valores crudos: guiño del ojo izquierdo + sonrisa, luego vuelta a neutral
+{"wait":1000,"s":"face","set":{"eye.l.open":0,"mouth.curve":1}}
+{"wait":1200,"s":"face","set":{"expr":"neutral"}}
+{"wait":800}

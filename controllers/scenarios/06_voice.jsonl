@@ -1,0 +1,12 @@
+# VOICE · pulsos de habla: la boca se abre con el nivel y la placa brilla un poco más
+{"s":"voice","ttl":120,"set":{"level":0.7}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.3}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.9}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.5}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.8}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.2}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.6}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":1.0}}
+{"wait":110,"s":"voice","ttl":120,"set":{"level":0.4}}
+# Al dejar de llegar datos, la boca se cierra sola (ttl)
+{"wait":1500}

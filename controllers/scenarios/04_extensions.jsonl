@@ -1,0 +1,14 @@
+# EXTENSIONS · púas largas, luego retraídas, luego normales
+{"s":"morph","set":{"spikes.len":1.8}}
+{"wait":1200,"s":"morph","set":{"spikes":0}}
+{"wait":1200,"s":"morph","set":{"spikes":1,"spikes.len":1}}
+# Fragmentos: aparecen, se dispersan mucho, se recogen y desaparecen
+{"wait":1000,"s":"morph","set":{"fragments":1}}
+{"wait":1200,"s":"morph","set":{"fragments.spread":2}}
+{"wait":1200,"s":"morph","set":{"fragments.spread":0.5}}
+{"wait":1200,"s":"morph","set":{"fragments":0,"fragments.spread":1}}
+# Opacidad: la silueta se desvanece (la cara queda), luego todo el cuerpo, luego vuelve
+{"wait":1000,"s":"morph","set":{"silhouette":0.15}}
+{"wait":1200,"s":"morph","set":{"opacity":0.3}}
+{"wait":1200,"s":"morph","set":{"silhouette":1,"opacity":1}}
+{"wait":800}

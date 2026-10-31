@@ -1,0 +1,16 @@
+[package]
+name = "capri-app"
+version.workspace = true
+edition.workspace = true
+description = "El binario: ventana flotante + loop que cablea link → core → render"
+
+[[bin]]
+name = "capri"
+path = "src/main.rs"
+
+[dependencies]
+capri-protocol.workspace = true
+capri-link.workspace = true
+capri-core.workspace = true
+capri-render.workspace = true
+winit.workspace = true

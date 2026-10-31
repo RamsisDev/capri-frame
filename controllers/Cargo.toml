@@ -1,0 +1,10 @@
+[package]
+name = "capri-ctl"
+version.workspace = true
+edition.workspace = true
+description = "Controladores de prueba: mandan streams al cuerpo para verificación visual"
+
+[dependencies]
+capri-protocol.workspace = true
+serde_json.workspace = true
+tungstenite.workspace = true

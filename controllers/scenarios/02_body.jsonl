@@ -1,0 +1,18 @@
+# BODY · poses: arms_up, wave, guard, lean_left, lean_right, idle (1 s cada una)
+{"s":"body","set":{"pose":"arms_up"}}
+{"wait":1000,"s":"body","set":{"pose":"wave"}}
+{"wait":1000,"s":"body","set":{"pose":"guard"}}
+{"wait":1000,"s":"body","set":{"pose":"lean_left"}}
+{"wait":1000,"s":"body","set":{"pose":"lean_right"}}
+{"wait":1000,"s":"body","set":{"pose":"idle"}}
+# Yaw (volumen): gira a un lado y al otro; el cuerpo se estrecha, la cara se desplaza y la luz se mueve
+{"wait":800,"s":"body","set":{"yaw":60}}
+{"wait":1000,"s":"body","set":{"yaw":-60}}
+{"wait":1000,"s":"body","set":{"yaw":0}}
+# Transform: se mueve a la izquierda, rota y encoge; luego vuelve
+{"wait":800,"s":"body","set":{"pos":[-0.4,0.1],"rot":-15,"scale":0.7}}
+{"wait":1200,"s":"body","set":{"pos":[0,0],"rot":0,"scale":1}}
+# Valores crudos: un solo brazo arriba
+{"wait":1000,"s":"body","set":{"arm.r":170}}
+{"wait":1000,"s":"body","set":{"arm.r":0}}
+{"wait":800}

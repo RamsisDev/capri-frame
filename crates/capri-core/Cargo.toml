@@ -1,0 +1,8 @@
+[package]
+name = "capri-core"
+version.workspace = true
+edition.workspace = true
+description = "El árbol ENTITY_BODY y su estado (resortes, TTL, idle, presets)"
+
+[dependencies]
+capri-protocol.workspace = true

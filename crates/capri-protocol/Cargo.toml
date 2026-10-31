@@ -1,0 +1,9 @@
+[package]
+name = "capri-protocol"
+version.workspace = true
+edition.workspace = true
+description = "Mensajes de los streams que controlan el cuerpo"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true

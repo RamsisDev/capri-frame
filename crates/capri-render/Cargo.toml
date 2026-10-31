@@ -1,0 +1,16 @@
+[package]
+name = "capri-render"
+version.workspace = true
+edition.workspace = true
+description = "Dibuja ENTITY_BODY con wgpu: silueta SDF con volumen falso, cara 2D y FX"
+
+[dependencies]
+capri-core.workspace = true
+wgpu.workspace = true
+pollster.workspace = true
+bytemuck.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+naga = { version = "30", features = ["wgsl-in"] }
