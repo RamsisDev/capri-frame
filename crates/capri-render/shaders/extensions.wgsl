@@ -1,31 +1,4 @@
-// ─── Extensions: Spikes, Fragments + forma rayo (núcleo bolt) ─────────────────
-
-// Púas en abanico sobre la cabeza. Devuelve (distancia, 0..1 posición a lo largo: 1 = punta).
-fn sd_spikes(p: vec2<f32>, s: Skel) -> vec2<f32> {
-  let amount = F.ext.x;
-  if (amount < 0.01) {
-    return vec2<f32>(1e3, 0.0);
-  }
-  let t = F.res.z;
-  let q = rot2(-s.head_rot) * (p - s.head);
-  var best = vec2<f32>(1e3, 0.0);
-  for (var i = 0; i < 7; i++) {
-    let fi = f32(i);
-    let k = fi / 6.0 - 0.5;
-    let ang = k * 2.4 + sin(t * 1.7 + fi * 1.3) * 0.06;
-    let len = (0.11 + 0.06 * hash11(fi + 3.0) + 0.05 * (1.0 - abs(k) * 2.0)) * F.ext.y * amount;
-    let base = vec2<f32>(k * 0.09, 0.03);
-    let tip = base + vec2<f32>(sin(ang), cos(ang)) * len;
-    let pa = q - base;
-    let ba = tip - base;
-    let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    let d = length(pa - ba * h) - mix(0.028, 0.002, h) * amount;
-    if (d < best.x) {
-      best = vec2<f32>(d, h);
-    }
-  }
-  return best;
-}
+// ─── Extensions: Fragments + forma rayo (núcleo bolt). El pelo vive en hair.wgsl ──
 
 // Piezas sueltas en órbita. Sin fusión: se ven separadas del cuerpo.
 fn sd_fragments(p: vec2<f32>, center: vec2<f32>, radius: f32) -> f32 {

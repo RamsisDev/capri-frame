@@ -5,6 +5,7 @@
 //! en `main.wgsl`. Se pueden partir en passes reales el día que haga falta.
 
 mod frame;
+pub mod hair;
 mod renderer;
 pub mod style;
 

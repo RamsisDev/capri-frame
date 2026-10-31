@@ -5,7 +5,7 @@ Una entidad externa (LLM, constructo de personalidad, script) le manda **datos**
 Para la entidad, el cuerpo es una subrutina: aquí dentro no hay lógica de IA.
 
 Referencia visual: Capri (*Cyberpunk: Edgerunners 2*): figura abstracta, deliberadamente "fuera de lugar",
-silueta negra delgada, peinado exagerado en púas rosas con punta verde, placa verde con dos ojos, cuerpo
+silueta negra delgada, pelo rojo exagerado en mechones con manchas estrelladas, placa verde con dos ojos, cuerpo
 que cambia de forma. No se usan imágenes: todo es geometría procedural.
 
 ```
@@ -74,7 +74,7 @@ Una clave tiene **un solo stream dueño** (hay un test que lo garantiza): dos st
 
 | Núcleo | Qué queda | Cómo pedirlo |
 |--------|-----------|--------------|
-| `full` | Cuerpo completo + púas + cara | `{"s":"morph","set":{"core":"full"}}` |
+| `full` | Cuerpo completo + cabeza (pelo, cara, ojos) | `{"s":"morph","set":{"core":"full"}}` |
 | `eyes` | Solo los ojos con su placa, grandes | `{"core":"eyes"}` |
 | `bolt` | Rayo en zigzag fragmentado, ojos arriba | `{"core":"bolt"}` |
 
@@ -90,9 +90,9 @@ es un morph, no un corte, y la entidad puede dejar el cuerpo a medio camino (`co
 ```
 ENTITY_BODY
 ├── TransformController      transform global + ShapeMorph (pesos de núcleos) + Opacity
-├── Face                     EyeLeft, EyeRight + placa (Mask), Mouth → face.wgsl
+├── Face                     EyeLeft, EyeRight + placa (Mask), Mouth + cara oscura → face.wgsl
 ├── Silhouette               Torso, Arms, Legs (+ opacidad propia)  → silhouette.wgsl
-└── Extensions               Spikes (fusionadas), Fragments (sueltas) → extensions.wgsl
+└── Extensions               Spikes (= el pelo, hair.wgsl), Fragments (sueltas) → extensions.wgsl
 ```
 
 Cada rama declara sus parámetros en un único lugar (`visit`): stream dueño + clave + parámetro.
@@ -107,14 +107,16 @@ el árbol y se componen en `main.wgsl`:
 
 ```
  core.tick()      resortes, TTL, idle (respiración, parpadeo)
- Frame::build()   el árbol → un uniform de 352 bytes
+ Frame::build()   el árbol → un uniform de 368 bytes
+ Hair::update()   pelo procedural → segundo uniform, solo al cruzar un umbral de giro
  GPU, por píxel:
    main.wgsl        TransformController: posición, rotación, escala, yaw
    silhouette.wgsl  esqueleto (FK) + SDF de torso/brazos/piernas
-   extensions.wgsl  púas, fragmentos, rayo
+   extensions.wgsl  fragmentos, rayo
    main.wgsl        mezcla de núcleos (mezcla de campos de distancia = morph orgánico)
                     volumen falso: normal del gradiente del SDF + luz que sigue al yaw
-   face.wgsl        ojos con su placa: 2D nítido, pegado a la cabeza (la boca aún no se dibuja)
+   face.wgsl        cabeza: pelo (hair.wgsl), cara oscura, ojos con su placa
+                    2D nítido, pegado a la cabeza (la boca aún no se dibuja)
    fx.wgsl          glitch, scanlines
 ```
 
@@ -147,6 +149,51 @@ centro    0.305 R         ┘ y quedan recortados dentro de la almendra
   referencia. Los colores vienen del estilo (`mask`, `eye_shell`, `eye_ring`, `eyes`, `pupil`).
 - Halo y brillo propios de la cara escalan con `style.glow`: con `glow: 0` los colores salen planos.
 
+### Cabeza: pelo y cara
+
+La cabeza tiene cuatro partes: ojos (arriba), pelo, cara y boca (pendiente). De atrás hacia
+delante: pelo, cara oscura (la base), placa con los ojos.
+
+- **Pelo** (`src/hair.rs` + `hair.wgsl`): una **plantilla** de ~75 triángulos planos medida sobre
+  las referencias del personaje (render low-poly de frente; coincide con su silueta en un 94 %).
+  Aristas rectas, puntas afiladas, sin curvas. Unidades R con la placa en (0, 0):
+  - **Masa**: arco de ~32 R de ancho sobre la placa, con dos lóbulos que bajan junto a la cara y
+    abrazan la placa casi sin margen. En total ~41 R de ancho (5 placas) y ~14 R sobre la placa.
+  - **Corona**: cuatro aletas de tiburón con las puntas a la misma altura (borde superior plano),
+    inclinadas hacia fuera. Nada apunta en vertical hacia arriba: el contorno es una pajarita, más
+    largo en las diagonales.
+  - **Púas**: ~55 % hojas finas (vértice ~33°), ~25 % aletas o muñones anchos, ~20 % agujas.
+    Algunas con detalle: colmillo que vuelve hacia la raíz, bandera (punta doblada) o escalón.
+  - **Capa delantera** (flequillo y mechones, dibujada encima de la placa): todo barrido hacia
+    abajo a la izquierda (~-130°). Una punta cae sobre el anillo del ojo izquierdo y otra entre
+    los ojos; los ojos y la parte de abajo de la placa quedan siempre libres.
+  - **Tramos de giro**: yaw cada 20°, pitch y roll cada 15° (el central es |ángulo| < paso / 2).
+    Solo se regenera, y se sube a la GPU, cuando un eje cruza un umbral, con 1.5° de histéresis.
+    Cada tramo mueve un poco los vértices al azar (0.15 R los bordes del hueco y las puntas del
+    flequillo, 0.4 R la masa, 0.7 R las púas; los vértices compartidos se mueven juntos). El
+    tramo central es la plantilla exacta y el mismo tramo da siempre el mismo pelo.
+  - **Detrás de la cara siempre hay pelo**: una tapa cierra el hueco de la cara en la masa (va
+    con ella) y un relleno en el plano de la placa va pegado a la cara. Así, gire como gire, no
+    queda espacio entre la placa y la masa. Se dibujan antes que la masa para no tapar sus facetas.
+  - **Giro**: la masa vive detrás de la cabeza, así se corre al lado contrario de la cara y se
+    estrecha un poco de perfil; de espalda se ve en espejo. El flequillo va pegado a la cara y
+    solo se dibuja delante mientras la cara mira al frente. En cuanto deja de mirar al frente se
+    añade la nuca, un disco que tapa toda la cabeza.
+  - En el shader cada capa es la unión de sus triángulos (sin costuras entre vecinos) y el tono es
+    el del último triángulo que cubre el píxel, así se ven las facetas.
+  - `spikes` y `spikes.len` lo hacen crecer.
+- **Manchas** (`hair_glint`): puntos sobre el pelo, más densos y grandes cerca de un foco. En el
+  tramo central el foco está en el centro del pelo; en los demás, hacia un punto cardinal del
+  plano del pelo, casi siempre arriba a la derecha y nunca por debajo.
+- **Cara** (`face`): la base de la placa. Contorno normal: frente y sienes rectas, mandíbula
+  redondeada hasta la barbilla. Va en la misma esfera que la placa y la contiene con margen, así
+  al girar la placa nunca se sale de la cara. Pesa con el núcleo `full`; en `eyes` y `bolt` no se
+  dibuja.
+- **Pelo delante de la cara al girar**: el pelo envuelve la cabeza como una cáscara mayor (8 R).
+  Donde el punto visible de esa cáscara cae a más de ~68° del frente de la cara, el pelo se pinta
+  encima de la cara; pasado el perfil termina de cerrarla. De frente nunca la tapa, y de espalda
+  no asoman tiras de cara por el borde de la cabeza.
+
 Partir esto en passes reales (silueta a media resolución, etc.) es posible sin tocar el árbol.
 Hoy no hace falta.
 
@@ -162,7 +209,10 @@ La forma (árbol) y el look están separados. El look es un preset JSON en `asse
 
 | Clave de `palette` | Qué pinta | Si falta |
 |--------------------|-----------|----------|
-| `body`, `rim`, `hair`, `tip` | silueta, contorno, púas | valores de `construct` |
+| `body`, `rim` | silueta, contorno | valores de `construct` |
+| `hair` | base del pelo | `#ef003d` |
+| `hair_glint` | manchas del pelo | `#edc4ea` |
+| `face` | superficie oscura de la cara | `#070211` |
 | `mask` | placa de los ojos | `#11e965` |
 | `eyes` | iris (y borde del rayo) | `#7fe8ff` |
 | `eye_shell` | silueta y disco de cada ojo | = `body` |
@@ -184,7 +234,7 @@ capri/
 │  ├─ capri-core/       ENTITY_BODY + resortes + TTL + idle + presets
 │  │   └─ src/body/{transform,face,silhouette,extensions}.rs
 │  ├─ capri-render/     wgpu + estilos
-│  │   └─ shaders/{common,silhouette,extensions,face,fx,main}.wgsl
+│  │   └─ shaders/{common,silhouette,extensions,hair,face,fx,main}.wgsl
 │  └─ capri-app/        binario `capri`: ventana + loop
 ├─ controllers/         `capri-ctl` (CLI), `capri-eyes` (panel nativo opcional) + escenarios .jsonl
 ├─ assets/styles/       presets gráficos (construct.json, mono.json, capri-eyes.json)

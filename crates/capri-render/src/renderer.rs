@@ -1,17 +1,21 @@
 use crate::Frame;
+use crate::hair::{Hair, HairData};
 
 /// Las capas WGSL, en orden. Cada archivo = una rama del árbol (o FX).
 const SHADER: &str = concat!(
     include_str!("../shaders/common.wgsl"),
     include_str!("../shaders/silhouette.wgsl"),
     include_str!("../shaders/extensions.wgsl"),
+    include_str!("../shaders/hair.wgsl"),
     include_str!("../shaders/face.wgsl"),
     include_str!("../shaders/fx.wgsl"),
     include_str!("../shaders/main.wgsl"),
 );
 
 pub struct Renderer {
-    surface: wgpu::Surface<'static>,
+    /// `None` = sin ventana (`offscreen`): se dibuja con `render_to` y `config` solo guarda
+    /// tamaño y formato.
+    surface: Option<wgpu::Surface<'static>>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -19,34 +23,48 @@ pub struct Renderer {
     uniforms: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     premultiplied: bool,
+    /// Pelo procedural: se regenera y se sube solo al cruzar un umbral de giro.
+    hair: Hair,
+    hair_uniforms: wgpu::Buffer,
+}
+
+fn instance() -> wgpu::Instance {
+    let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
+    // En Windows solo DX12 + DirectComposition da ventanas transparentes.
+    // En macOS (Metal) y Linux (Vulkan) la transparencia sale de la superficie.
+    // Todo se puede forzar con WGPU_BACKEND / WGPU_DX12_PRESENTATION_SYSTEM.
+    desc.backends =
+        wgpu::Backends::from_env().unwrap_or(if cfg!(windows) { wgpu::Backends::DX12 } else { wgpu::Backends::PRIMARY });
+    desc.backend_options.dx12.presentation_system = wgpu::Dx12SwapchainKind::DxgiFromVisual;
+    desc.backend_options = desc.backend_options.with_env();
+    wgpu::Instance::new(desc)
+}
+
+fn gpu(
+    instance: &wgpu::Instance,
+    surface: Option<&wgpu::Surface<'_>>,
+) -> Result<(wgpu::Adapter, wgpu::Device, wgpu::Queue), String> {
+    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::LowPower,
+        compatible_surface: surface,
+        ..Default::default()
+    }))
+    .map_err(|e| format!("adaptador: {e}"))?;
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        label: Some("capri"),
+        required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
+        ..Default::default()
+    }))
+    .map_err(|e| format!("dispositivo: {e}"))?;
+    Ok((adapter, device, queue))
 }
 
 impl Renderer {
     /// `target` suele ser un `Arc<winit::window::Window>`; el render no depende de winit.
     pub fn new(target: impl Into<wgpu::SurfaceTarget<'static>>, width: u32, height: u32) -> Result<Self, String> {
-        let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
-        // En Windows solo DX12 + DirectComposition da ventanas transparentes.
-        // En macOS (Metal) y Linux (Vulkan) la transparencia sale de la superficie.
-        // Todo se puede forzar con WGPU_BACKEND / WGPU_DX12_PRESENTATION_SYSTEM.
-        desc.backends = wgpu::Backends::from_env()
-            .unwrap_or(if cfg!(windows) { wgpu::Backends::DX12 } else { wgpu::Backends::PRIMARY });
-        desc.backend_options.dx12.presentation_system = wgpu::Dx12SwapchainKind::DxgiFromVisual;
-        desc.backend_options = desc.backend_options.with_env();
-        let instance = wgpu::Instance::new(desc);
-
+        let instance = instance();
         let surface = instance.create_surface(target).map_err(|e| format!("superficie: {e}"))?;
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::LowPower,
-            compatible_surface: Some(&surface),
-            ..Default::default()
-        }))
-        .map_err(|e| format!("adaptador: {e}"))?;
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("capri"),
-            required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
-            ..Default::default()
-        }))
-        .map_err(|e| format!("dispositivo: {e}"))?;
+        let (adapter, device, queue) = gpu(&instance, Some(&surface))?;
 
         let caps = surface.get_capabilities(&adapter);
         let mut config = surface
@@ -72,7 +90,35 @@ impl Renderer {
             config.format,
             config.alpha_mode
         );
+        Ok(Self::build(Some(surface), device, queue, config, premultiplied))
+    }
 
+    /// Sin ventana: se dibuja con `render_to` en una textura propia de `format` y `width` × `height`
+    /// (con `RENDER_ATTACHMENT`). La salida es premultiplicada.
+    pub fn offscreen(width: u32, height: u32, format: wgpu::TextureFormat) -> Result<Self, String> {
+        let (adapter, device, queue) = gpu(&instance(), None)?;
+        eprintln!("[render] {} · {:?} · {format:?} · sin ventana", adapter.get_info().name, adapter.get_info().backend);
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            color_space: Default::default(),
+            width: width.max(1),
+            height: height.max(1),
+            present_mode: wgpu::PresentMode::Fifo,
+            desired_maximum_frame_latency: 2,
+            alpha_mode: wgpu::CompositeAlphaMode::PreMultiplied,
+            view_formats: vec![],
+        };
+        Ok(Self::build(None, device, queue, config, true))
+    }
+
+    fn build(
+        surface: Option<wgpu::Surface<'static>>,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        config: wgpu::SurfaceConfiguration,
+        premultiplied: bool,
+    ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("capri"),
             source: wgpu::ShaderSource::Wgsl(SHADER.into()),
@@ -83,23 +129,33 @@ impl Renderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let hair_uniforms = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("hair"),
+            size: std::mem::size_of::<HairData>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let uniform_entry = |binding| wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        };
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
+            entries: &[uniform_entry(0), uniform_entry(1)],
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: uniforms.as_entire_binding() }],
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: uniforms.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: hair_uniforms.as_entire_binding() },
+            ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
@@ -132,7 +188,18 @@ impl Renderer {
             cache: None,
         });
 
-        Ok(Self { surface, device, queue, config, pipeline, uniforms, bind_group, premultiplied })
+        Self {
+            surface,
+            device,
+            queue,
+            config,
+            pipeline,
+            uniforms,
+            bind_group,
+            premultiplied,
+            hair: Hair::default(),
+            hair_uniforms,
+        }
     }
 
     pub fn premultiplied(&self) -> bool {
@@ -143,31 +210,58 @@ impl Renderer {
         (self.config.width, self.config.height)
     }
 
+    /// Para crear y leer texturas en modo `offscreen`.
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
+    /// Olvida el tramo del pelo: el próximo frame lo genera de cero, sin histéresis.
+    pub fn reset_hair(&mut self) {
+        self.hair = Hair::default();
+    }
+
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
-            self.surface.configure(&self.device, &self.config);
+            if let Some(surface) = &self.surface {
+                surface.configure(&self.device, &self.config);
+            }
         }
     }
 
+    /// Dibuja en la ventana. Sin ventana (`offscreen`) no hace nada: usa `render_to`.
     pub fn render(&mut self, frame: &Frame) {
-        let texture = match self.surface.get_current_texture() {
+        let Some(surface) = &self.surface else { return };
+        let texture = match surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(t) | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
-                self.surface.configure(&self.device, &self.config);
+                surface.configure(&self.device, &self.config);
                 return;
             }
             _ => return, // ocluida o timeout: se salta el frame
         };
+        self.render_to(frame, &texture.texture.create_view(&Default::default()));
+        self.queue.present(texture);
+    }
+
+    /// Dibuja un frame en `view`, que debe tener el formato y el tamaño del renderer.
+    pub fn render_to(&mut self, frame: &Frame, view: &wgpu::TextureView) {
         self.queue.write_buffer(&self.uniforms, 0, bytemuck::bytes_of(frame));
-        let view = texture.texture.create_view(&Default::default());
+        let deg = f32::to_degrees;
+        if let Some(hair) = self.hair.update(deg(frame.root2[1]), deg(frame.head[0]), deg(frame.head[1])) {
+            self.queue.write_buffer(&self.hair_uniforms, 0, bytemuck::bytes_of(hair));
+        }
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("body"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view,
                     resolve_target: None,
                     depth_slice: None,
                     ops: wgpu::Operations {
@@ -182,7 +276,6 @@ impl Renderer {
             pass.draw(0..3, 0..1);
         }
         self.queue.submit([encoder.finish()]);
-        self.queue.present(texture);
     }
 }
 
@@ -199,7 +292,9 @@ mod tests {
 
     #[test]
     fn frame_matches_wgsl_size() {
-        // 22 vec4<f32> en `struct Frame` de common.wgsl
-        assert_eq!(std::mem::size_of::<crate::Frame>(), 22 * 16);
+        // 23 vec4<f32> en `struct Frame` de common.wgsl
+        assert_eq!(std::mem::size_of::<crate::Frame>(), 23 * 16);
+        // 2 + 224 vec4<f32> en `struct Hair` de hair.wgsl
+        assert_eq!(std::mem::size_of::<crate::hair::HairData>(), (2 + 2 * crate::hair::MAX_SHARDS) * 16);
     }
 }

@@ -316,6 +316,7 @@ dependencies = [
  "bytemuck",
  "capri-core",
  "naga",
+ "png",
  "pollster",
  "serde",
  "serde_json",

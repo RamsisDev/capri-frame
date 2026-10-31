@@ -43,9 +43,9 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | `leg.l`, `leg.r` | 0 | piernas |
 | `pos.x`, `pos.y` (o `pos: [x,y]`) | 0 | posición en la ventana, -1..1 |
 | `rot` | 0 | rotación global |
-| `yaw` | 0 | giro sobre el eje vertical, grados (0 frontal, ±45 tres cuartos, ±90 perfil, 180 espalda). Los ojos y su placa giran sobre una esfera; de espalda la placa se ve verde, sin ojos |
-| `pitch` | 0 | cabeceo de la cabeza, grados (+ = mira arriba). Gira los ojos sobre la misma esfera |
-| `roll` | 0 | inclinación lateral de la cabeza sobre el eje de la cara, grados (+ = antihorario) |
+| `yaw` | 0 | giro sobre el eje vertical, grados (0 frontal, ±45 tres cuartos, ±90 perfil, 180 espalda). La cabeza gira sobre una esfera; de espalda el pelo la tapa entera. El pelo cambia de forma cada 20° |
+| `pitch` | 0 | cabeceo de la cabeza, grados (+ = mira arriba). Gira los ojos sobre la misma esfera. El pelo cambia de forma cada 15° |
+| `roll` | 0 | inclinación lateral de la cabeza sobre el eje de la cara, grados (+ = antihorario). El pelo cambia de forma cada 15° |
 | `scale` | 1 | escala global |
 
 ## `morph`
@@ -56,7 +56,7 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | `core.full`, `core.eyes`, `core.bolt` | 1, 0, 0 | pesos crudos de cada núcleo (se mezclan) |
 | `silhouette` | 1 | opacidad del cuerpo (la cara queda) |
 | `opacity` | 1 | opacidad de todo |
-| `spikes`, `spikes.len` | 1, 1 | presencia y largo de las púas |
+| `spikes`, `spikes.len` | 1, 1 | presencia y tamaño del pelo |
 | `fragments`, `fragments.spread` | 0, 1 | fragmentos en órbita y su dispersión |
 
 ## `voice`

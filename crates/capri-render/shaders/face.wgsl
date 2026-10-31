@@ -1,6 +1,7 @@
-// ─── Face: EyeLeft, EyeRight + su placa (Mask) ────────────────────────────────
-// Capa 2D nítida pegada a la cabeza. Existe en todos los núcleos.
-// La placa es parte de los ojos: siempre se dibuja con ellos. La boca aún no se dibuja.
+// ─── Face: cabeza = pelo (hair.wgsl) + cara oscura + EyeLeft, EyeRight y su placa ─
+// Capa 2D nítida pegada a la cabeza. Placa y ojos existen en todos los núcleos; la cara oscura
+// pesa con el núcleo `full` y el pelo con `spikes`. La boca aún no se dibuja.
+// De atrás hacia delante: pelo, cara, halo y placa, ojos.
 //
 // Las proporciones van en unidades de R = radio exterior del anillo del ojo.
 // Espacio de ojo: origen en el centro del ojo en reposo, y hacia arriba y x positiva HACIA EL
@@ -58,6 +59,13 @@ const HEEL_B = vec2<f32>(1.29, -0.022);
 // el hemisferio delantero (esquina a 4.37 R < HEAD_R), sin cortes dentro de ella.
 const HEAD_R: f32 = 5.4;                                  // radio de la esfera, unidades R
 
+// El pelo envuelve la cabeza como una cáscara mayor. Un píxel de la cara queda tapado por el pelo
+// si el punto de esa cáscara que se ve ahí cae en la zona de pelo: a más de ~68° del frente de la
+// cara (z / radio < HAIR_LINE). De frente nunca tapa la cara; al girar de espalda la cubre entera,
+// sin que asomen tiras de cara por el borde de la cabeza.
+const HAIR_SHELL: f32 = 8.0;                              // radio de la cáscara, unidades R
+const HAIR_LINE: f32 = 0.38;
+
 // Pantalla → espacio de la cabeza. La cabeza gira yaw (eje vertical, + = la cara va a la derecha),
 // luego pitch (eje lateral, + = mira arriba) y luego roll (eje de la cara, + = antihorario);
 // aquí se deshacen en orden inverso. Matrices por columnas.
@@ -82,6 +90,16 @@ fn head_stretch(to_head: mat3x3<f32>, w: vec2<f32>, z: f32) -> f32 {
   let dx = (to_head * vec3<f32>(1.0, 0.0, k.x)).xy;
   let dy = (to_head * vec3<f32>(0.0, 1.0, k.y)).xy;
   return clamp(max(length(dx), length(dy)), 1.0, 8.0);
+}
+
+// Cara: la superficie oscura (`face`), base de la placa. Contorno normal: frente y sienes rectas,
+// mandíbula redondeada hasta la barbilla. Va en la misma esfera que la placa y contiene la placa
+// con margen, así al girar la placa nunca se sale de la cara. Todo su contorno queda dentro de
+// HEAD_R (el punto más lejano está a ~4.9 R).
+fn sd_face(u: vec2<f32>) -> f32 {
+  let upper = sd_box(u - vec2<f32>(0.0, 0.65), vec2<f32>(4.5, 1.65), 0.9);
+  let jaw = sd_ellipse(u - vec2<f32>(0.0, -0.4), vec2<f32>(4.45, 4.15));
+  return smin(upper, jaw, 0.6);
 }
 
 // Efectos propios de la cara (halo, brillo). Escalan con `style.glow`: 0 = colores planos.
@@ -223,7 +241,8 @@ fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, lid: f32, px: 
   return col;
 }
 
-fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -> vec4<f32> {
+// `head_w`: peso de la cabeza completa (cara oscura). El pelo lo controla `spikes`.
+fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, head_w: f32, px: f32) -> vec4<f32> {
   let q = rot2(-ang) * (p - center) / fscale;
   let w = q / EYE_R;                     // pantalla, unidades R, origen en el centro de la cabeza
   let pxu = px / (fscale * EYE_R);
@@ -232,24 +251,27 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
   let fxk = clamp(F.fx.x / FX_FULL, 0.0, 1.0);
   var col = vec4<f32>(0.0);
 
-  // Volumen (yaw, pitch, roll): cada píxel del disco de la cabeza toca la esfera en un punto
-  // delante y otro detrás; ambos se llevan al espacio de la cabeza deshaciendo el giro.
+  // Volumen (yaw, pitch, roll): cada píxel del disco de la cabeza toca la esfera en su punto
+  // delantero, que se lleva al espacio de la cabeza deshaciendo el giro.
   let to_head = head_inverse(F.root2.y, F.head.x, F.head.y);
   let zs = sqrt(max(HEAD_R * HEAD_R - dot(w, w), 0.0));
   let head = aa(length(w) - HEAD_R, pxu);
   let front = to_head * vec3<f32>(w, zs);
-  let back = to_head * vec3<f32>(w, -zs);
   let pxf = pxu * head_stretch(to_head, w, zs);
-  let pxb = pxu * head_stretch(to_head, w, -zs);
 
-  // De espalda: la placa se ve a través de la cabeza, verde liso y sin ojos. Provisional: cuando
-  // la cabeza tape la cara, esta capa desaparece.
-  let back_plate = aa(sd_box(back.xy, PLATE_HALF, PLATE_CORNER), pxb) * step(0.0, back.z) * head;
-  col = over(col, vec4<f32>(F.col_mask.rgb, back_plate));
+  // Pelo, detrás de la cabeza. Donde la cáscara de pelo queda delante de la cara, se repite encima.
+  let hair = hair_layer(w, pxu);
+  col = over(col, hair.back);
+  let shell = to_head * vec3<f32>(w, sqrt(max(HAIR_SHELL * HAIR_SHELL - dot(w, w), 0.0)));
+  // Pasado el perfil (la cara ya mira hacia atrás) el pelo termina de cerrar el borde.
+  let turned = 1.0 - smoothstep(-0.25, -0.05, cos(F.root2.y) * cos(F.head.x));
+  let hair_over = max(aa(shell.z - HAIR_LINE * HAIR_SHELL, pxu * 1.5), turned);
 
-  // Mask + halo, en el hemisferio delantero de la cabeza
+  // En el hemisferio delantero de la cabeza: cara oscura (base), halo, placa y ojos.
   let u = front.xy;                      // espacio de placa, unidades R
   let facing = step(0.0, front.z) * head;
+  col = over(col, vec4<f32>(F.col_face.rgb, aa(sd_face(u), pxf) * facing * head_w));
+
   let dm = sd_box(u, PLATE_HALF, PLATE_CORNER);
   let plate = aa(dm, pxf) * facing;
   let halo = exp(-max(dm, 0.0) * 1.4) * glow * 0.45 * fxk * facing;
@@ -273,5 +295,6 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
     let eye = eye_layer(e, size, gaze * mirror, open, F.face2.z, pxf);
     col = over(col, vec4<f32>(eye.rgb, eye.a * plate)); // recortado a la placa (ojos ampliados incluidos)
   }
-  return col;
+  col = over(col, vec4<f32>(hair.back.rgb, hair.back.a * hair_over));
+  return over(col, hair.front); // flequillo: siempre delante de la placa
 }

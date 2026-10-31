@@ -11,13 +11,14 @@ struct Frame {
   face2: vec4<f32>,    // tamaño ojo der, voz, curva al cerrar, -
   limbs0: vec4<f32>,   // cuello, torso, brazo izq, brazo der
   limbs1: vec4<f32>,   // pierna izq, pierna der, opacidad silueta, -
-  ext: vec4<f32>,      // púas, largo púas, fragmentos, dispersión
+  ext: vec4<f32>,      // pelo (spikes), largo del pelo, fragmentos, dispersión
   col_body: vec4<f32>,
   col_rim: vec4<f32>,
   col_mask: vec4<f32>,
   col_eyes: vec4<f32>,
   col_hair: vec4<f32>,
-  col_tip: vec4<f32>,
+  col_face: vec4<f32>,  // cara oscura
+  col_glint: vec4<f32>, // manchas del pelo
   col_shell: vec4<f32>, // silueta del ojo + disco
   col_ring: vec4<f32>,  // anillo del ojo
   col_pupil: vec4<f32>, // centro del ojo

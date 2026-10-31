@@ -27,14 +27,16 @@ pub struct Frame {
     pub limbs0: [f32; 4],
     /// pierna izq, pierna der (rad), opacidad silueta, -
     pub limbs1: [f32; 4],
-    /// púas, largo púas, fragmentos, dispersión fragmentos
+    /// pelo (`spikes`), largo del pelo, fragmentos, dispersión fragmentos
     pub ext: [f32; 4],
     pub col_body: [f32; 4],
     pub col_rim: [f32; 4],
     pub col_mask: [f32; 4],
     pub col_eyes: [f32; 4],
     pub col_hair: [f32; 4],
-    pub col_tip: [f32; 4],
+    /// cara oscura, manchas del pelo
+    pub col_face: [f32; 4],
+    pub col_glint: [f32; 4],
     /// silueta del ojo + disco, anillo del ojo, centro del ojo
     pub col_shell: [f32; 4],
     pub col_ring: [f32; 4],
@@ -80,7 +82,8 @@ impl Frame {
             col_mask: hex(&p.mask),
             col_eyes: hex(&p.eyes),
             col_hair: hex(&p.hair),
-            col_tip: hex(&p.tip),
+            col_face: hex(&p.face),
+            col_glint: hex(&p.hair_glint),
             col_shell: hex(p.eye_shell.as_deref().unwrap_or(&p.body)),
             col_ring: hex(p.eye_ring.as_deref().unwrap_or(&p.mask)),
             col_pupil: hex(&p.pupil),

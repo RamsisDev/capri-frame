@@ -4,8 +4,9 @@
     "rim": "#11e965",
     "mask": "#11e965",
     "eyes": "#1178f1",
-    "hair": "#ff3df0",
-    "tip": "#11e965",
+    "hair": "#ef003d",
+    "hair_glint": "#edc4ea",
+    "face": "#070211",
     "eye_shell": "#060606",
     "eye_ring": "#11e965",
     "pupil": "#e2eae9"

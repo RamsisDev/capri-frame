@@ -26,8 +26,12 @@ pub struct Palette {
     pub mask: String,
     /// Iris (disco central de color). También tiñe el borde del rayo.
     pub eyes: String,
+    /// Base del pelo.
     pub hair: String,
-    pub tip: String,
+    /// Manchas estrelladas del pelo.
+    pub hair_glint: String,
+    /// Superficie oscura de la cara, alrededor de la placa.
+    pub face: String,
     /// Silueta alrededor de cada ojo y disco bajo el iris. Sin valor = `body`.
     pub eye_shell: Option<String>,
     /// Anillo fino que rodea el disco del ojo. Sin valor = `mask`.
@@ -70,8 +74,9 @@ impl Default for Palette {
             rim: "#ff3df0".into(),
             mask: "#11e965".into(),
             eyes: "#7fe8ff".into(),
-            hair: "#ff3df0".into(),
-            tip: "#39ff88".into(),
+            hair: "#ef003d".into(),
+            hair_glint: "#edc4ea".into(),
+            face: "#070211".into(),
             eye_shell: None,
             eye_ring: None,
             pupil: "#9a9a9a".into(),

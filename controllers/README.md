@@ -78,7 +78,7 @@ parcialmente ocultos por el contorno.
 | `01_face.jsonl` | idle (parpadeo), mirada, los 7 presets de expresión, valores crudos |
 | `02_body.jsonl` | las 6 poses, yaw (volumen), posición/rotación/escala, un brazo crudo |
 | `03_cores.jsonl` | full → eyes → eyes + cara → bolt → mezcla cruda → full |
-| `04_extensions.jsonl` | púas, fragmentos, opacidad de la silueta y global |
+| `04_extensions.jsonl` | pelo (`spikes`), fragmentos, opacidad de la silueta y global |
 | `05_ttl_silence.jsonl` | vuelta sola tras el `ttl`, descarte de `seq` atrasado, ráfagas |
 | `06_voice.jsonl` | pulsos de voz sobre el brillo de la placa (la boca aún no se dibuja) |
 | `07_eyes.jsonl` | base de los ojos: mirada, guiños, cierre, tamaños, giro (yaw, pitch, roll), presets y transiciones de núcleo (mejor con `--style assets/styles/capri-eyes.json`) |
