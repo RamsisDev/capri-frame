@@ -81,7 +81,7 @@ parcialmente ocultos por el contorno.
 | `04_extensions.jsonl` | púas, fragmentos, opacidad de la silueta y global |
 | `05_ttl_silence.jsonl` | vuelta sola tras el `ttl`, descarte de `seq` atrasado, ráfagas |
 | `06_voice.jsonl` | pulsos de voz sobre el brillo de la placa (la boca aún no se dibuja) |
-| `07_eyes.jsonl` | base de los ojos: mirada, guiños, cierre, tamaños, presets y transiciones de núcleo (mejor con `--style assets/styles/capri-eyes.json`) |
+| `07_eyes.jsonl` | base de los ojos: mirada, guiños, cierre, tamaños, giro (yaw, pitch, roll), presets y transiciones de núcleo (mejor con `--style assets/styles/capri-eyes.json`) |
 
 ## Formato `.jsonl`
 

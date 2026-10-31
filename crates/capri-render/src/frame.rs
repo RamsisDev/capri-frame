@@ -43,6 +43,8 @@ pub struct Frame {
     pub fx: [f32; 4],
     /// grosor contorno (px), -, -, -
     pub fx2: [f32; 4],
+    /// cabeceo, inclinación lateral de la cabeza (rad), -, -
+    pub head: [f32; 4],
 }
 
 impl Frame {
@@ -84,6 +86,7 @@ impl Frame {
             col_pupil: hex(&p.pupil),
             fx: [style.glow, style.scanlines.density, style.scanlines.strength, style.glitch.rate],
             fx2: [style.outline, 0.0, 0.0, 0.0],
+            head: [rad(t.pitch.value), rad(t.roll.value), 0.0, 0.0],
         }
     }
 }

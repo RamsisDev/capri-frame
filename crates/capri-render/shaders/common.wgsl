@@ -23,6 +23,7 @@ struct Frame {
   col_pupil: vec4<f32>, // centro del ojo
   fx: vec4<f32>,       // glow, densidad scanlines, fuerza scanlines, glitch
   fx2: vec4<f32>,      // contorno px
+  head: vec4<f32>,     // cabeceo, inclinación lateral de la cabeza, -, -
 };
 
 @group(0) @binding(0) var<uniform> F: Frame;

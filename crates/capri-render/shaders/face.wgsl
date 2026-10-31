@@ -52,6 +52,38 @@ const HEEL_TIP = vec2<f32>(1.476, -0.987);                // talón: esquina inf
 const HEEL_A = vec2<f32>(0.497, -0.806);
 const HEEL_B = vec2<f32>(1.29, -0.022);
 
+// Volumen: la placa va pegada a una esfera (la cabeza) que gira con `body.yaw`, `body.pitch` y
+// `body.roll`. Proyección
+// ortográfica sobre el plano de la cara, así a 0° se ve exactamente el 2D. Toda la placa cabe en
+// el hemisferio delantero (esquina a 4.37 R < HEAD_R), sin cortes dentro de ella.
+const HEAD_R: f32 = 5.4;                                  // radio de la esfera, unidades R
+
+// Pantalla → espacio de la cabeza. La cabeza gira yaw (eje vertical, + = la cara va a la derecha),
+// luego pitch (eje lateral, + = mira arriba) y luego roll (eje de la cara, + = antihorario);
+// aquí se deshacen en orden inverso. Matrices por columnas.
+fn head_inverse(yaw: f32, pitch: f32, roll: f32) -> mat3x3<f32> {
+  let cy = cos(yaw);
+  let sy = sin(yaw);
+  let cp = cos(pitch);
+  let sp = sin(pitch);
+  let cr = cos(roll);
+  let sr = sin(roll);
+  let un_yaw = mat3x3<f32>(vec3<f32>(cy, 0.0, sy), vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(-sy, 0.0, cy));
+  let un_pitch = mat3x3<f32>(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, cp, sp), vec3<f32>(0.0, -sp, cp));
+  let un_roll = mat3x3<f32>(vec3<f32>(cr, -sr, 0.0), vec3<f32>(sr, cr, 0.0), vec3<f32>(0.0, 0.0, 1.0));
+  return un_roll * un_pitch * un_yaw;
+}
+
+// Al girar, la placa se comprime en pantalla (más cerca del borde de la esfera): el antialias
+// crece en la misma medida. Es el estiramiento de pantalla → placa en el punto de profundidad `z`;
+// de frente vale 1.
+fn head_stretch(to_head: mat3x3<f32>, w: vec2<f32>, z: f32) -> f32 {
+  let k = -w / select(min(z, -1e-3), max(z, 1e-3), z >= 0.0);
+  let dx = (to_head * vec3<f32>(1.0, 0.0, k.x)).xy;
+  let dy = (to_head * vec3<f32>(0.0, 1.0, k.y)).xy;
+  return clamp(max(length(dx), length(dy)), 1.0, 8.0);
+}
+
 // Efectos propios de la cara (halo, brillo). Escalan con `style.glow`: 0 = colores planos.
 const FX_FULL: f32 = 0.6;                                 // style.glow con el que llegan a su fuerza completa
 
@@ -192,21 +224,35 @@ fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, lid: f32, px: 
 }
 
 fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -> vec4<f32> {
-  var q = rot2(-ang) * (p - center) / fscale;
-  let yaw = F.root2.y;
-  let turn = max(cos(yaw), 0.4);
-  q.x = (q.x - sin(yaw) * 0.025) / turn; // los rasgos se desplazan hacia donde gira y se estrechan
-  let u = q / EYE_R;                     // espacio de placa, unidades R
+  let q = rot2(-ang) * (p - center) / fscale;
+  let w = q / EYE_R;                     // pantalla, unidades R, origen en el centro de la cabeza
   let pxu = px / (fscale * EYE_R);
   let voice = F.face2.y;
   let glow = F.face.x + voice * 0.5;
   let fxk = clamp(F.fx.x / FX_FULL, 0.0, 1.0);
   var col = vec4<f32>(0.0);
 
-  // Mask + halo
+  // Volumen (yaw, pitch, roll): cada píxel del disco de la cabeza toca la esfera en un punto
+  // delante y otro detrás; ambos se llevan al espacio de la cabeza deshaciendo el giro.
+  let to_head = head_inverse(F.root2.y, F.head.x, F.head.y);
+  let zs = sqrt(max(HEAD_R * HEAD_R - dot(w, w), 0.0));
+  let head = aa(length(w) - HEAD_R, pxu);
+  let front = to_head * vec3<f32>(w, zs);
+  let back = to_head * vec3<f32>(w, -zs);
+  let pxf = pxu * head_stretch(to_head, w, zs);
+  let pxb = pxu * head_stretch(to_head, w, -zs);
+
+  // De espalda: la placa se ve a través de la cabeza, verde liso y sin ojos. Provisional: cuando
+  // la cabeza tape la cara, esta capa desaparece.
+  let back_plate = aa(sd_box(back.xy, PLATE_HALF, PLATE_CORNER), pxb) * step(0.0, back.z) * head;
+  col = over(col, vec4<f32>(F.col_mask.rgb, back_plate));
+
+  // Mask + halo, en el hemisferio delantero de la cabeza
+  let u = front.xy;                      // espacio de placa, unidades R
+  let facing = step(0.0, front.z) * head;
   let dm = sd_box(u, PLATE_HALF, PLATE_CORNER);
-  let plate = aa(dm, pxu);
-  let halo = exp(-max(dm, 0.0) * 1.4) * glow * 0.45 * fxk;
+  let plate = aa(dm, pxf) * facing;
+  let halo = exp(-max(dm, 0.0) * 1.4) * glow * 0.45 * fxk * facing;
   col = over(col, vec4<f32>(F.col_mask.rgb, halo));
   col = over(col, vec4<f32>(F.col_mask.rgb * mix(1.0, 0.75 + 0.35 * glow, fxk), plate));
 
@@ -224,7 +270,7 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
     let open = clamp(select(F.eyes.x, F.eyes.y, right), 0.0, 1.0) * (1.0 - blink);
     let size = max(select(F.face.w, F.face2.x, right), 0.05);
     let e = (u - vec2<f32>(side * EYE_X, EYE_Y)) * mirror;
-    let eye = eye_layer(e, size, gaze * mirror, open, F.face2.z, pxu);
+    let eye = eye_layer(e, size, gaze * mirror, open, F.face2.z, pxf);
     col = over(col, vec4<f32>(eye.rgb, eye.a * plate)); // recortado a la placa (ojos ampliados incluidos)
   }
   return col;

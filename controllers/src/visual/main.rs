@@ -225,6 +225,79 @@ impl Controller {
         );
     }
 
+    fn yaw_controls(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Giro (volumen)");
+        ui.horizontal(|ui| {
+            ui.monospace("body → yaw");
+            ui.add(
+                egui::Slider::new(&mut self.eyes.yaw, -180.0..=180.0)
+                    .step_by(0.5)
+                    .fixed_decimals(1)
+                    .suffix("°"),
+            );
+        });
+        for (angle, label) in [
+            (0.0, "Frontal"),
+            (22.5, "Giro leve"),
+            (45.0, "Tres cuartos"),
+            (67.5, "Casi perfil"),
+            (90.0, "Perfil completo"),
+            (135.0, "Tres cuartos trasero"),
+        ] {
+            ui.horizontal(|ui| {
+                ui.label(format!("{label}:"));
+                for sign in if angle == 0.0 { &[1.0][..] } else { &[-1.0, 1.0][..] } {
+                    let value = angle * sign;
+                    if ui.selectable_label(self.eyes.yaw == value, format!("{value}°")).clicked() {
+                        self.eyes.yaw = value;
+                    }
+                }
+            });
+        }
+        ui.horizontal(|ui| {
+            ui.label("Espalda:");
+            if ui.selectable_label(self.eyes.yaw == 180.0, "180°").clicked() {
+                self.eyes.yaw = 180.0;
+            }
+        });
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.monospace("body → pitch");
+            ui.add(
+                egui::Slider::new(&mut self.eyes.pitch, -90.0..=90.0)
+                    .step_by(0.5)
+                    .fixed_decimals(1)
+                    .suffix("°")
+                    .text("Arriba / abajo"),
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.monospace("body → roll");
+            ui.add(
+                egui::Slider::new(&mut self.eyes.roll, -90.0..=90.0)
+                    .step_by(0.5)
+                    .fixed_decimals(1)
+                    .suffix("°")
+                    .text("Inclinación lateral"),
+            );
+        });
+        ui.horizontal_wrapped(|ui| {
+            for (label, pitch, roll) in [
+                ("Arriba", 30.0, 0.0),
+                ("Abajo", -30.0, 0.0),
+                ("Inclinar izq.", 0.0, 20.0),
+                ("Inclinar der.", 0.0, -20.0),
+                ("Recto", 0.0, 0.0),
+            ] {
+                if ui.button(label).clicked() {
+                    self.eyes.pitch = pitch;
+                    self.eyes.roll = roll;
+                }
+            }
+        });
+        ui.small("La placa gira sobre una esfera. De espalda se ve verde, sin ojos (provisional).");
+    }
+
     fn context_controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Contexto de la prueba");
         ui.horizontal_wrapped(|ui| {
@@ -297,6 +370,8 @@ impl eframe::App for Controller {
                 egui::Frame::group(ui.style()).show(ui, |ui| self.eye_controls(ui));
                 ui.add_space(8.0);
                 egui::Frame::group(ui.style()).show(ui, |ui| self.gaze_controls(ui));
+                ui.add_space(8.0);
+                egui::Frame::group(ui.style()).show(ui, |ui| self.yaw_controls(ui));
                 ui.add_space(8.0);
                 egui::Frame::group(ui.style()).show(ui, |ui| self.context_controls(ui));
                 ui.add_space(10.0);

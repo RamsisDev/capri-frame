@@ -13,6 +13,10 @@ pub struct TransformController {
     pub rot: Param,
     /// Giro sobre el eje vertical (grados): da la sensación de volumen.
     pub yaw: Param,
+    /// Cabeceo de la cabeza (grados): positivo = mira arriba.
+    pub pitch: Param,
+    /// Inclinación lateral de la cabeza sobre el eje de la cara (grados): positivo = antihorario.
+    pub roll: Param,
     pub scale: Param,
     pub opacity: Param,
 }
@@ -37,6 +41,8 @@ impl Default for TransformController {
             pos_y: Param::with_speed(0.0, 8.0),
             rot: Param::new(0.0),
             yaw: Param::with_speed(0.0, 8.0),
+            pitch: Param::with_speed(0.0, 8.0),
+            roll: Param::with_speed(0.0, 8.0),
             scale: Param::new(1.0),
             opacity: Param::new(1.0),
         }
@@ -53,6 +59,8 @@ impl Node for TransformController {
         f(Body, "pos.y", &mut self.pos_y);
         f(Body, "rot", &mut self.rot);
         f(Body, "yaw", &mut self.yaw);
+        f(Body, "pitch", &mut self.pitch);
+        f(Body, "roll", &mut self.roll);
         f(Body, "scale", &mut self.scale);
     }
 }

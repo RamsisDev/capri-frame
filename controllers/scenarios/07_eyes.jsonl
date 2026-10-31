@@ -39,6 +39,22 @@
 {"wait":1100,"s":"face","set":{"expr":"angry"}}
 {"wait":1100,"s":"face","set":{"expr":"sleep"}}
 {"wait":1100,"s":"face","set":{"expr":"neutral"}}
+# Giro (yaw): leve, tres cuartos, casi perfil, perfil, tres cuartos trasero y espalda. La placa se comprime al girar sobre la esfera de la cabeza; pasado el perfil se ve verde y sin ojos
+{"wait":900,"s":"body","set":{"yaw":22.5}}
+{"wait":1000,"s":"body","set":{"yaw":45}}
+{"wait":1000,"s":"body","set":{"yaw":67.5}}
+{"wait":1000,"s":"body","set":{"yaw":90}}
+{"wait":1000,"s":"body","set":{"yaw":135}}
+{"wait":1000,"s":"body","set":{"yaw":180}}
+{"wait":1500,"s":"body","set":{"yaw":-45}}
+{"wait":1500,"s":"body","set":{"yaw":0}}
+# Pitch (arriba / abajo) y roll (inclinación lateral): la placa sube o baja comprimiéndose sobre la esfera; con roll se inclina entera. Al final, combinado con yaw
+{"wait":1500,"s":"body","set":{"pitch":30}}
+{"wait":1000,"s":"body","set":{"pitch":-30}}
+{"wait":1000,"s":"body","set":{"pitch":0,"roll":20}}
+{"wait":1000,"s":"body","set":{"roll":-20}}
+{"wait":1000,"s":"body","set":{"yaw":45,"pitch":20,"roll":-10}}
+{"wait":1500,"s":"body","set":{"yaw":0,"pitch":0,"roll":0}}
 # Transiciones: eyes → full (los ojos se encogen sobre la cabeza) → bolt (ojos arriba del rayo) → eyes → full
 {"wait":1000,"s":"morph","set":{"core":"full"}}
 {"wait":2000,"s":"morph","set":{"core":"bolt"}}

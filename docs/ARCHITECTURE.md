@@ -107,7 +107,7 @@ el árbol y se componen en `main.wgsl`:
 
 ```
  core.tick()      resortes, TTL, idle (respiración, parpadeo)
- Frame::build()   el árbol → un uniform de 336 bytes
+ Frame::build()   el árbol → un uniform de 352 bytes
  GPU, por píxel:
    main.wgsl        TransformController: posición, rotación, escala, yaw
    silhouette.wgsl  esqueleto (FK) + SDF de torso/brazos/piernas

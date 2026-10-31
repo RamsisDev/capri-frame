@@ -11,6 +11,12 @@ pub struct Eyes {
     pub gaze: [f32; 2],
     pub core: &'static str,
     pub scale: f32,
+    /// Giro de la cabeza en grados: 0 frontal, ±90 perfil, 180 espalda.
+    pub yaw: f32,
+    /// Cabeceo en grados: positivo = mira arriba.
+    pub pitch: f32,
+    /// Inclinación lateral en grados: positivo = antihorario.
+    pub roll: f32,
 }
 
 impl Default for Eyes {
@@ -22,6 +28,9 @@ impl Default for Eyes {
             gaze: [0.0; 2],
             core: "eyes",
             scale: 2.0,
+            yaw: 0.0,
+            pitch: 0.0,
+            roll: 0.0,
         }
     }
 }
@@ -32,7 +41,10 @@ impl Eyes {
         let decimal = |value: f32| (value as f64 * 100.0).round() / 100.0;
         json!([
             {"s": "morph", "set": {"core": self.core}},
-            {"s": "body", "set": {"scale": decimal(self.scale)}},
+            {"s": "body", "set": {
+                "scale": decimal(self.scale), "yaw": decimal(self.yaw),
+                "pitch": decimal(self.pitch), "roll": decimal(self.roll)
+            }},
             {"s": "face", "set": {
                 "eye.l.open": decimal(self.open[0]), "eye.r.open": decimal(self.open[1]),
                 "eye.l.size": decimal(self.size[0]), "eye.r.size": decimal(self.size[1]),
@@ -68,6 +80,9 @@ mod tests {
             size: [0.5, 1.5],
             gaze: [-1.0, 0.7],
             lid: -1.0,
+            yaw: -135.0,
+            pitch: 30.0,
+            roll: -15.0,
             ..Eyes::default()
         };
         let mut state = State::default();
@@ -90,6 +105,9 @@ mod tests {
         assert_eq!(face.gaze_y.target(), 0.7);
         assert_eq!(state.body.transform.shape_morph.eyes.target(), 1.0);
         assert_eq!(state.body.transform.scale.target(), 2.0);
+        assert_eq!(state.body.transform.yaw.target(), -135.0);
+        assert_eq!(state.body.transform.pitch.target(), 30.0);
+        assert_eq!(state.body.transform.roll.target(), -15.0);
     }
 
     #[test]

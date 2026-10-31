@@ -43,7 +43,9 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | `leg.l`, `leg.r` | 0 | piernas |
 | `pos.x`, `pos.y` (o `pos: [x,y]`) | 0 | posición en la ventana, -1..1 |
 | `rot` | 0 | rotación global |
-| `yaw` | 0 | giro sobre el eje vertical (sensación de volumen) |
+| `yaw` | 0 | giro sobre el eje vertical, grados (0 frontal, ±45 tres cuartos, ±90 perfil, 180 espalda). Los ojos y su placa giran sobre una esfera; de espalda la placa se ve verde, sin ojos |
+| `pitch` | 0 | cabeceo de la cabeza, grados (+ = mira arriba). Gira los ojos sobre la misma esfera |
+| `roll` | 0 | inclinación lateral de la cabeza sobre el eje de la cara, grados (+ = antihorario) |
 | `scale` | 1 | escala global |
 
 ## `morph`
