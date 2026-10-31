@@ -180,7 +180,7 @@ capri/
 │  ├─ capri-render/     wgpu + estilos
 │  │   └─ shaders/{common,silhouette,extensions,face,fx,main}.wgsl
 │  └─ capri-app/        binario `capri`: ventana + loop
-├─ controllers/         binario `capri-ctl` + escenarios .jsonl de verificación visual
+├─ controllers/         `capri-ctl` (CLI), `capri-eyes` (panel nativo opcional) + escenarios .jsonl
 ├─ assets/styles/       presets gráficos (construct.json, mono.json, capri-eyes.json)
 └─ docs/
 ```
@@ -194,6 +194,12 @@ protocol ◄── link
                      ▲
 app ─── usa link, core y render (es el único que los cablea)
 ```
+
+Los controladores están fuera del cuerpo: `capri-eyes` usa egui/eframe solo con la feature
+`visual` y manda objetivos por WebSocket; no enlaza `core`, `link` ni `render` en producción.
+Su modelo guarda objetivos de prueba, no una copia del estado animado. `make test` abre el panel
+y un proceso `capri` independiente con un puerto local libre. El cierre administra únicamente
+ese proceso hijo. `make check` queda reservado para verificaciones automáticas.
 
 ---
 

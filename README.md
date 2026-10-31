@@ -7,7 +7,13 @@ abstracto que reacciona a streams de datos. Inspirado en Capri (*Cyberpunk: Edge
 ```sh
 cargo run --release -p capri-app            # el cuerpo (se cierra con Ctrl+C en la terminal)
 cargo run -p capri-ctl -- all               # en otra terminal: todos los escenarios de prueba
+make test                                  # prueba manual: panel de ojos + Capri en ventanas separadas
 ```
+
+El panel permite abrir/cerrar cada ojo, hacer guiños, ajustar tamaños y mirada, consultar el JSON
+y aprobar un ajuste guardándolo como escenario. Requiere GNU Make en el `PATH`; los comandos Cargo
+equivalentes están en [controllers/README.md](controllers/README.md). `make check` ejecuta las pruebas
+automáticas y Clippy, sin abrir ventanas.
 
 Opciones de `capri`: `--port 7777` · `--size 360x520` · `--style assets/styles/mono.json` ·
 `--interactive` (la ventana recibe el ratón) · `--no-top`.
