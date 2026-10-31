@@ -1,8 +1,9 @@
 use super::Node;
 use crate::Param;
-use capri_protocol::Stream::{self, Face as F, Morph, Voice};
+use capri_protocol::Stream::{self, Face as F, Voice};
 
-/// La cara: la placa (Mask) con dos ojos y boca. Sobrevive en todos los núcleos.
+/// La cara: los dos ojos con su placa (Mask) y la boca. Sobrevive en todos los núcleos.
+/// La placa es parte de los ojos: siempre se dibuja con ellos. La boca aún no se dibuja.
 #[derive(Debug, Clone)]
 pub struct Face {
     pub mask: Mask,
@@ -16,8 +17,6 @@ pub struct Face {
 
 #[derive(Debug, Clone)]
 pub struct Mask {
-    /// 0 = sin placa (solo ojos). Lo controla `morph`: es parte del núcleo.
-    pub visible: Param,
     pub glow: Param,
 }
 
@@ -43,7 +42,7 @@ impl Default for Face {
     fn default() -> Self {
         let eye = || Eye { open: Param::with_speed(1.0, 22.0), size: Param::new(1.0) };
         Self {
-            mask: Mask { visible: Param::with_speed(1.0, 8.0), glow: Param::new(0.6) },
+            mask: Mask { glow: Param::new(0.6) },
             eye_left: eye(),
             eye_right: eye(),
             mouth: Mouth {
@@ -59,7 +58,6 @@ impl Default for Face {
 
 impl Node for Face {
     fn visit(&mut self, f: &mut dyn FnMut(Stream, &'static str, &mut Param)) {
-        f(Morph, "mask", &mut self.mask.visible);
         f(F, "mask.glow", &mut self.mask.glow);
         f(F, "eye.l.open", &mut self.eye_left.open);
         f(F, "eye.r.open", &mut self.eye_right.open);

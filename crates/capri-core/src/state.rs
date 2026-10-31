@@ -17,7 +17,7 @@ pub struct State {
 }
 
 /// Claves que son presets (se aplican antes que los valores crudos del mismo mensaje,
-/// así `{"core":"eyes","mask":true}` = solo ojos + cara).
+/// así `{"core":"eyes","silhouette":0.3}` = solo ojos + silueta tenue).
 const PRESET_KEYS: [(Stream, &str); 3] = [(Stream::Face, "expr"), (Stream::Body, "pose"), (Stream::Morph, "core")];
 
 impl State {
@@ -102,9 +102,9 @@ mod tests {
     fn preset_then_raw_override() {
         let mut s = State::default();
         let now = Instant::now();
-        send(&mut s, r#"{"s":"morph","set":{"mask":true,"core":"eyes"}}"#, now);
+        send(&mut s, r#"{"s":"morph","set":{"silhouette":0.3,"core":"eyes"}}"#, now);
         assert_eq!(s.body.transform.shape_morph.eyes.target(), 1.0);
-        assert_eq!(s.body.face.mask.visible.target(), 1.0, "mask explícito gana al preset");
+        assert_eq!(s.body.silhouette.opacity.target(), 0.3, "valor crudo gana al preset");
     }
 
     #[test]

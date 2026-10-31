@@ -15,7 +15,7 @@ pub struct Frame {
     pub root: [f32; 4],
     /// escala, yaw (rad), respiración 0..1, parpadeo 0..1
     pub root2: [f32; 4],
-    /// peso núcleo full, eyes, bolt, máscara visible
+    /// peso núcleo full, eyes, bolt, -
     pub cores: [f32; 4],
     /// ojo izq abierto, ojo der abierto, mirada x, mirada y
     pub eyes: [f32; 4],
@@ -60,7 +60,7 @@ impl Frame {
                 t.shape_morph.full.value.max(0.0),
                 t.shape_morph.eyes.value.max(0.0),
                 t.shape_morph.bolt.value.max(0.0),
-                f.mask.visible.value.clamp(0.0, 1.0),
+                0.0,
             ],
             eyes: [f.eye_left.open.value, f.eye_right.open.value, f.gaze_x.value, f.gaze_y.value],
             face: [

@@ -12,7 +12,7 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 ```
 
 - Los arrays se expanden a ejes: `"gaze": [0.3, -0.1]` = `gaze.x`, `gaze.y`. `"pos": [x, y]` igual.
-- Los booleanos valen 0/1: `"mask": true`.
+- Los booleanos valen 0/1: `"spikes": false`.
 - Una clave desconocida, o que pertenece a otro stream, se ignora y se avisa **una vez** en la consola
   del cuerpo, junto con la lista de claves válidas.
 - Presets y valores crudos pueden ir juntos: los presets se aplican primero y los crudos los corrigen.
@@ -26,8 +26,8 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | `eye.l.size`, `eye.r.size` | ~0.5..1.5 | 1 | tamaño de cada ojo (disco e iris; la silueta crece la mitad) |
 | `gaze.x`, `gaze.y` (o `gaze: [x,y]`) | -1..1 | 0 | mirada: mueve iris y centro dentro del anillo (el vector se limita a longitud 1) |
 | `mask.glow` | 0..1 | 0.6 | brillo de la placa |
-| `mouth.open` | 0..1 | 0 | apertura de la boca |
-| `mouth.curve` | -1..1 | 0 | triste … sonrisa |
+| `mouth.open` | 0..1 | 0 | apertura de la boca (aún no se dibuja) |
+| `mouth.curve` | -1..1 | 0 | triste … sonrisa (aún no se dibuja) |
 
 ## `body`
 
@@ -51,7 +51,6 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 |-------|------|----------|
 | `core` | — | preset de núcleo: `full` `eyes` `bolt` |
 | `core.full`, `core.eyes`, `core.bolt` | 1, 0, 0 | pesos crudos de cada núcleo (se mezclan) |
-| `mask` | 1 | placa visible (en `eyes`: `true` = meter la cara) |
 | `silhouette` | 1 | opacidad del cuerpo (la cara queda) |
 | `opacity` | 1 | opacidad de todo |
 | `spikes`, `spikes.len` | 1, 1 | presencia y largo de las púas |
@@ -61,7 +60,7 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 
 | Clave | Rango | Qué hace |
 |-------|-------|----------|
-| `level` | 0..1 | nivel de voz: se suma a `mouth.open` y aviva la placa. Mandar con `ttl` corto (~120 ms) |
+| `level` | 0..1 | nivel de voz: se suma a `mouth.open` y aviva la placa (con `glow` > 0 en el estilo). Mandar con `ttl` corto (~120 ms) |
 
 Reservado: `viseme`.
 
@@ -70,8 +69,8 @@ Reservado: `viseme`.
 ```jsonc
 // sorpresa que dura 1.5 s y vuelve sola
 {"s":"face","ttl":1500,"set":{"expr":"surprised"}}
-// solo ojos, con cara
-{"s":"morph","set":{"core":"eyes","mask":true}}
+// solo ojos (con su placa)
+{"s":"morph","set":{"core":"eyes"}}
 // varios streams en un frame
 [{"s":"body","set":{"pose":"wave","yaw":30}},{"s":"face","set":{"expr":"happy"}}]
 ```

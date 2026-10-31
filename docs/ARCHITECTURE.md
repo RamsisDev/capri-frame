@@ -57,14 +57,14 @@ Sobre común (ver [PROTOCOL.md](PROTOCOL.md) para todas las claves):
   no se congela: respira y parpadea solo (idle local).
 - **Presets o crudo**: la entidad puede mandar un nombre probado (`expr`, `pose`, `core`) o
   valores crudos. En un mismo mensaje, los presets se aplican primero y los valores crudos los
-  corrigen después: `{"core":"eyes","mask":true}` = solo ojos + cara.
+  corrigen después: `{"core":"eyes","silhouette":0.3}` = solo ojos + silueta tenue.
 
 | Stream  | Para qué | Dueño de |
 |---------|----------|----------|
-| `face`  | Control facial | `Face/*` (Mask brillo, ojos, mirada, boca) |
+| `face`  | Control facial | `Face/*` (ojos, mirada, brillo de la placa, boca) |
 | `body`  | Control corporal | `Silhouette/*` + posición / rotación / yaw / escala globales |
-| `morph` | Control polimórfico, a gusto de la entidad | núcleos, opacidades, máscara visible, `Extensions/*` |
-| `voice` | Voz (previsto ya) | nivel de voz: se **suma** a la boca y al brillo |
+| `morph` | Control polimórfico, a gusto de la entidad | núcleos, opacidades, `Extensions/*` |
+| `voice` | Voz (previsto ya) | nivel de voz: se **suma** a la boca (aún sin dibujar) y al brillo de la placa |
 
 Una clave tiene **un solo stream dueño** (hay un test que lo garantiza): dos streams nunca se pelean.
 
@@ -75,7 +75,7 @@ Una clave tiene **un solo stream dueño** (hay un test que lo garantiza): dos st
 | Núcleo | Qué queda | Cómo pedirlo |
 |--------|-----------|--------------|
 | `full` | Cuerpo completo + púas + cara | `{"s":"morph","set":{"core":"full"}}` |
-| `eyes` | Solo los ojos, grandes y brillantes | `{"core":"eyes"}` · con cara: `{"core":"eyes","mask":true}` |
+| `eyes` | Solo los ojos con su placa, grandes | `{"core":"eyes"}` |
 | `bolt` | Rayo en zigzag fragmentado, ojos arriba | `{"core":"bolt"}` |
 
 Los núcleos son **pesos** (`core.full`, `core.eyes`, `core.bolt`) que se mezclan: cambiar de núcleo
@@ -90,7 +90,7 @@ es un morph, no un corte, y la entidad puede dejar el cuerpo a medio camino (`co
 ```
 ENTITY_BODY
 ├── TransformController      transform global + ShapeMorph (pesos de núcleos) + Opacity
-├── Face                     Mask, EyeLeft, EyeRight, Mouth         → face.wgsl
+├── Face                     EyeLeft, EyeRight + placa (Mask), Mouth → face.wgsl
 ├── Silhouette               Torso, Arms, Legs (+ opacidad propia)  → silhouette.wgsl
 └── Extensions               Spikes (fusionadas), Fragments (sueltas) → extensions.wgsl
 ```
@@ -114,7 +114,7 @@ el árbol y se componen en `main.wgsl`:
    extensions.wgsl  púas, fragmentos, rayo
    main.wgsl        mezcla de núcleos (mezcla de campos de distancia = morph orgánico)
                     volumen falso: normal del gradiente del SDF + luz que sigue al yaw
-   face.wgsl        placa, ojos, boca: 2D nítido, pegado a la cabeza
+   face.wgsl        ojos con su placa: 2D nítido, pegado a la cabeza (la boca aún no se dibuja)
    fx.wgsl          glitch, scanlines
 ```
 
@@ -122,7 +122,8 @@ el árbol y se componen en `main.wgsl`:
 
 Los dos ojos salen de una misma función (`eye_layer` en `face.wgsl`) que trabaja en espacio de
 ojo: unidad = R (radio exterior del anillo), x positiva hacia el centro de la cara; el ojo derecho
-es el espejo del izquierdo. Capas, de atrás hacia delante:
+es el espejo del izquierdo. La placa es parte de los ojos: se dibuja siempre con ellos, en todos
+los núcleos (no hay interruptor en `morph`). Capas, de atrás hacia delante:
 
 ```
 placa 8.08 × 3.31 R (2.44:1) · centros a ±2.03 R, 0.365 R bajo el centro de la placa
@@ -135,8 +136,8 @@ centro    0.305 R          ┘ y los recorta una ventana de párpados que se cie
 
 - `open` (× parpadeo de idle) cierra la ventana de párpados: los círculos se recortan, no se
   aplastan. Con `open = 0` no asoma nada del iris ni del centro.
-- `size` escala disco, anillo, iris y centro; la silueta crece la mitad. Con placa, todo el ojo
-  queda recortado dentro de ella.
+- `size` escala disco, anillo, iris y centro; la silueta crece la mitad. Todo el ojo queda
+  recortado dentro de la placa.
 - Las proporciones son constantes al principio de `face.wgsl`, ajustadas contra la imagen de
   referencia. Los colores vienen del estilo (`mask`, `eye_shell`, `eye_ring`, `eyes`, `pupil`).
 - Halo y brillo propios de la cara escalan con `style.glow`: con `glow: 0` los colores salen planos.
@@ -157,7 +158,7 @@ La forma (árbol) y el look están separados. El look es un preset JSON en `asse
 | Clave de `palette` | Qué pinta | Si falta |
 |--------------------|-----------|----------|
 | `body`, `rim`, `hair`, `tip` | silueta, contorno, púas | valores de `construct` |
-| `mask` | placa | `#39ff88` |
+| `mask` | placa de los ojos | `#11e965` |
 | `eyes` | iris (y borde del rayo) | `#7fe8ff` |
 | `eye_shell` | silueta y disco de cada ojo | = `body` |
 | `eye_ring` | anillo de cada ojo | = `mask` |

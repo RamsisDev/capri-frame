@@ -218,7 +218,6 @@ impl Controller {
                     self.eyes.scale = if core == "eyes" { 2.0 } else { 1.0 };
                 }
             }
-            ui.checkbox(&mut self.eyes.mask, "Placa · morph.mask");
         });
         ui.horizontal(|ui| {
             ui.monospace("body → scale");

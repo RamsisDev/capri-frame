@@ -68,7 +68,7 @@ impl Default for Palette {
         Self {
             body: "#07070b".into(),
             rim: "#ff3df0".into(),
-            mask: "#39ff88".into(),
+            mask: "#11e965".into(),
             eyes: "#7fe8ff".into(),
             hair: "#ff3df0".into(),
             tip: "#39ff88".into(),

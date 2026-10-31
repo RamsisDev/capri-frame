@@ -8,7 +8,6 @@ pub struct Eyes {
     pub size: [f32; 2],
     pub gaze: [f32; 2],
     pub core: &'static str,
-    pub mask: bool,
     pub scale: f32,
 }
 
@@ -19,7 +18,6 @@ impl Default for Eyes {
             size: [1.0; 2],
             gaze: [0.0; 2],
             core: "eyes",
-            mask: true,
             scale: 2.0,
         }
     }
@@ -30,7 +28,7 @@ impl Eyes {
         // Los controles tienen pasos de centésima: el JSON debe mostrar 0.4, no ruido de f32.
         let decimal = |value: f32| (value as f64 * 100.0).round() / 100.0;
         json!([
-            {"s": "morph", "set": {"core": self.core, "mask": self.mask}},
+            {"s": "morph", "set": {"core": self.core}},
             {"s": "body", "set": {"scale": decimal(self.scale)}},
             {"s": "face", "set": {
                 "eye.l.open": decimal(self.open[0]), "eye.r.open": decimal(self.open[1]),
@@ -65,7 +63,6 @@ mod tests {
             open: [0.0, 0.4],
             size: [0.5, 1.5],
             gaze: [-1.0, 0.7],
-            mask: false,
             ..Eyes::default()
         };
         let mut state = State::default();
@@ -85,7 +82,6 @@ mod tests {
         assert_eq!(face.eye_right.size.target(), 1.5);
         assert_eq!(face.gaze_x.target(), -1.0);
         assert_eq!(face.gaze_y.target(), 0.7);
-        assert_eq!(face.mask.visible.target(), 0.0);
         assert_eq!(state.body.transform.shape_morph.eyes.target(), 1.0);
         assert_eq!(state.body.transform.scale.target(), 2.0);
     }

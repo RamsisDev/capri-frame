@@ -1,5 +1,6 @@
-// ─── Face: Mask, EyeLeft, EyeRight, Mouth ────────────────────────────────────
+// ─── Face: EyeLeft, EyeRight + su placa (Mask) ────────────────────────────────
 // Capa 2D nítida pegada a la cabeza. Existe en todos los núcleos.
+// La placa es parte de los ojos: siempre se dibuja con ellos. La boca aún no se dibuja.
 //
 // Las proporciones van en unidades de R = radio exterior del anillo del ojo.
 // Espacio de ojo: origen en el centro del anillo, y hacia arriba y x positiva HACIA EL
@@ -37,13 +38,6 @@ const HEEL_TIP = vec2<f32>(1.476, -0.987);                // talón: esquina inf
 const HEEL_A = vec2<f32>(0.497, -0.806);
 const HEEL_B = vec2<f32>(1.29, -0.022);
 
-// Boca: en el hueco entre las dos siluetas, por encima de sus talones.
-const MOUTH_Y: f32 = -1.04;
-const MOUTH_HALF_W: f32 = 0.42;
-const MOUTH_THICK: f32 = 0.07;                            // media altura cerrada
-const MOUTH_OPEN: f32 = 0.34;                             // media altura extra con boca abierta
-const MOUTH_CURVE: f32 = 0.22;
-
 // Efectos propios de la cara (halo, brillo). Escalan con `style.glow`: 0 = colores planos.
 const FX_FULL: f32 = 0.6;                                 // style.glow con el que llegan a su fuerza completa
 
@@ -59,15 +53,14 @@ fn sd_eye_shell(e: vec2<f32>) -> f32 {
 // Un ojo. `p` y `px` en unidades R, espacio de ojo sin escalar; `gaze` ya espejado y con
 // longitud <= 1; `open` ya incluye el parpadeo. Silueta y anillo quedan fijos; iris y centro
 // se mueven. Las distancias se devuelven a unidades sin escalar para que el antialias no cambie.
-fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, px: f32, lone: f32, fxk: f32) -> vec4<f32> {
+fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, px: f32) -> vec4<f32> {
   var col = vec4<f32>(0.0);
   let shell_k = 1.0 + SHELL_SIZE_FOLLOW * (size - 1.0);
   let e = p / size;                      // disco, anillo, iris y centro
   let r = length(e);
 
-  // Silueta + disco negro (sin placa y con efectos, un halo del color del anillo)
+  // Silueta + disco negro
   let d_shell = min(sd_eye_shell(p / shell_k) * shell_k, (r - 1.0) * size);
-  col = over(col, vec4<f32>(F.col_ring.rgb, exp(-max(d_shell, 0.0) * 1.6) * 0.5 * lone * fxk));
   col = over(col, vec4<f32>(F.col_shell.rgb, aa(d_shell, px)));
   let pxe = px / size;
 
@@ -84,7 +77,7 @@ fn eye_layer(p: vec2<f32>, size: f32, gaze: vec2<f32>, open: f32, px: f32, lone:
 
   // Iris y centro, recortados por los párpados
   let g = length(e - gaze * GAZE_MAX);
-  col = over(col, vec4<f32>(F.col_eyes.rgb * (1.0 + 0.5 * lone * fxk), aa(max(g - IRIS_R, d_lid), pxe)));
+  col = over(col, vec4<f32>(F.col_eyes.rgb, aa(max(g - IRIS_R, d_lid), pxe)));
   col = over(col, vec4<f32>(F.col_pupil.rgb, aa(max(g - PUPIL_R, d_lid), pxe)));
   return col;
 }
@@ -96,8 +89,6 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
   q.x = (q.x - sin(yaw) * 0.025) / turn; // los rasgos se desplazan hacia donde gira y se estrechan
   let u = q / EYE_R;                     // espacio de placa, unidades R
   let pxu = px / (fscale * EYE_R);
-  let mask_vis = F.cores.w;
-  let lone = 1.0 - mask_vis;             // sin placa, los ojos son todo lo que queda
   let voice = F.face2.y;
   let glow = F.face.x + voice * 0.5;
   let fxk = clamp(F.fx.x / FX_FULL, 0.0, 1.0);
@@ -106,11 +97,9 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
   // Mask + halo
   let dm = sd_box(u, PLATE_HALF, PLATE_CORNER);
   let plate = aa(dm, pxu);
-  let halo = exp(-max(dm, 0.0) * 1.4) * glow * 0.45 * fxk * mask_vis;
+  let halo = exp(-max(dm, 0.0) * 1.4) * glow * 0.45 * fxk;
   col = over(col, vec4<f32>(F.col_mask.rgb, halo));
-  col = over(col, vec4<f32>(F.col_mask.rgb * mix(1.0, 0.75 + 0.35 * glow, fxk), plate * mask_vis));
-  // Con placa, ojos y boca quedan recortados dentro de ella (ojos ampliados incluidos).
-  let clip = mix(1.0, plate, mask_vis);
+  col = over(col, vec4<f32>(F.col_mask.rgb * mix(1.0, 0.75 + 0.35 * glow, fxk), plate));
 
   // Eyes
   let blink = F.root2.w;
@@ -126,17 +115,8 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, px: f32) -
     let open = clamp(select(F.eyes.x, F.eyes.y, right), 0.0, 1.0) * (1.0 - blink);
     let size = max(select(F.face.w, F.face2.x, right), 0.05);
     let e = (u - vec2<f32>(side * EYE_X, EYE_Y)) * mirror;
-    let eye = eye_layer(e, size, gaze * mirror, open, pxu, lone, fxk);
-    col = over(col, vec4<f32>(eye.rgb, eye.a * clip));
-  }
-
-  // Mouth (dibujada sobre la placa)
-  let mx = u.x / MOUTH_HALF_W;
-  if (abs(mx) < 1.0) {
-    let yc = MOUTH_Y + F.face.z * MOUTH_CURVE * (mx * mx - 0.5);
-    let thick = MOUTH_THICK + F.face.y * MOUTH_OPEN * (1.0 - mx * mx);
-    let dmo = abs(u.y - yc) - thick;
-    col = over(col, vec4<f32>(F.col_body.rgb, aa(dmo, pxu) * mask_vis * plate));
+    let eye = eye_layer(e, size, gaze * mirror, open, pxu);
+    col = over(col, vec4<f32>(eye.rgb, eye.a * plate)); // recortado a la placa (ojos ampliados incluidos)
   }
   return col;
 }

@@ -31,7 +31,7 @@ se añade al cuerpo ni al controlador CLI. Usa el mismo WebSocket y los mismos s
 
 - Apertura y tamaño independientes, o vinculados, con valores numéricos editables.
 - Abrir, cerrar, entrecerrar, guiños, mirada por ejes y botones de dirección.
-- Ojos, cuerpo o rayo; placa y zoom para comparar el mismo ajuste en contexto.
+- Ojos, cuerpo o rayo y zoom para comparar el mismo ajuste en contexto.
 - Claves exactas junto a cada control, JSON copiable y último mensaje enviado.
 - **Aprobar y guardar** crea `controllers/captures/eyes-<marca de tiempo>.jsonl`, sin sobrescribir
   escenarios. Reprodúcelo con `cargo run -p capri-ctl -- play controllers/captures/<archivo>.jsonl`.
@@ -64,7 +64,7 @@ Opciones: `--spawn`, `--port <puerto>` y `--style <archivo.json>` (estilo solo c
 Para las pruebas automáticas usa `make check` o `cargo test --workspace --all-features`.
 
 Verificación manual: cerrar ambos ojos (sin iris visible), probar cada guiño, desligar tamaños,
-mover la mirada a extremos, ocultar la placa, comparar núcleos y guardar/reproducir un ajuste.
+mover la mirada a extremos, comparar núcleos y guardar/reproducir un ajuste.
 El anillo y la silueta del ojo permanecen al cerrar los párpados; se recortan el iris y el centro.
 
 ## Escenarios de secuencias
@@ -76,7 +76,7 @@ El anillo y la silueta del ojo permanecen al cerrar los párpados; se recortan e
 | `03_cores.jsonl` | full → eyes → eyes + cara → bolt → mezcla cruda → full |
 | `04_extensions.jsonl` | púas, fragmentos, opacidad de la silueta y global |
 | `05_ttl_silence.jsonl` | vuelta sola tras el `ttl`, descarte de `seq` atrasado, ráfagas |
-| `06_voice.jsonl` | pulsos de voz sobre la boca y la placa |
+| `06_voice.jsonl` | pulsos de voz sobre el brillo de la placa (la boca aún no se dibuja) |
 | `07_eyes.jsonl` | base de los ojos: mirada, guiños, cierre, tamaños, presets y transiciones de núcleo (mejor con `--style assets/styles/capri-eyes.json`) |
 
 ## Formato `.jsonl`

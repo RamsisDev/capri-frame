@@ -1,4 +1,4 @@
-# VOICE · pulsos de habla: la boca se abre con el nivel y la placa brilla un poco más
+# VOICE · pulsos de habla: la placa brilla un poco más con el nivel (solo con glow > 0, p. ej. construct.json). La boca aún no se dibuja
 {"s":"voice","ttl":120,"set":{"level":0.7}}
 {"wait":110,"s":"voice","ttl":120,"set":{"level":0.3}}
 {"wait":110,"s":"voice","ttl":120,"set":{"level":0.9}}
@@ -8,5 +8,5 @@
 {"wait":110,"s":"voice","ttl":120,"set":{"level":0.6}}
 {"wait":110,"s":"voice","ttl":120,"set":{"level":1.0}}
 {"wait":110,"s":"voice","ttl":120,"set":{"level":0.4}}
-# Al dejar de llegar datos, la boca se cierra sola (ttl)
+# Al dejar de llegar datos, el brillo vuelve solo (ttl)
 {"wait":1500}

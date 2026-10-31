@@ -2,10 +2,10 @@
 {"s":"face","ttl":1500,"set":{"expr":"surprised"}}
 {"s":"body","ttl":1500,"set":{"pose":"arms_up"}}
 {"wait":3000}
-# SEQ · llega seq 10 (boca abierta) y luego seq 9 (atrasado): la boca debe seguir ABIERTA
-{"s":"face","seq":10,"set":{"mouth.open":1}}
-{"wait":300,"s":"face","seq":9,"set":{"mouth.open":0}}
-{"wait":1200,"s":"face","seq":11,"set":{"mouth.open":0}}
+# SEQ · llega seq 10 (ojo izquierdo cerrado) y luego seq 9 (atrasado): el ojo debe seguir CERRADO
+{"s":"face","seq":10,"set":{"eye.l.open":0}}
+{"wait":300,"s":"face","seq":9,"set":{"eye.l.open":1}}
+{"wait":1200,"s":"face","seq":11,"set":{"eye.l.open":1}}
 # Datos no continuos: ráfaga de 5 mensajes en 100 ms y luego nada; el movimiento debe verse continuo
 {"s":"face","set":{"gaze":[0.8,0]}}
 {"wait":20,"s":"face","set":{"gaze":[0.4,0.4]}}

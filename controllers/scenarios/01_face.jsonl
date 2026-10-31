@@ -12,7 +12,7 @@
 {"wait":1000,"s":"face","set":{"expr":"surprised"}}
 {"wait":1000,"s":"face","set":{"expr":"sleep"}}
 {"wait":1000,"s":"face","set":{"expr":"neutral"}}
-# Valores crudos: guiño del ojo izquierdo + sonrisa, luego vuelta a neutral
-{"wait":1000,"s":"face","set":{"eye.l.open":0,"mouth.curve":1}}
+# Valores crudos: guiño del ojo izquierdo, luego vuelta a neutral
+{"wait":1000,"s":"face","set":{"eye.l.open":0}}
 {"wait":1200,"s":"face","set":{"expr":"neutral"}}
 {"wait":800}
