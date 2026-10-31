@@ -1,0 +1,17 @@
+{
+  "palette": {
+    "body": "#060606",
+    "rim": "#029642",
+    "mask": "#029642",
+    "eyes": "#024399",
+    "hair": "#ff3df0",
+    "tip": "#029642",
+    "eye_shell": "#060606",
+    "eye_ring": "#029642",
+    "pupil": "#9a9a9a"
+  },
+  "outline": 1.5,
+  "glow": 0,
+  "scanlines": { "density": 220, "strength": 0 },
+  "glitch": { "rate": 0 }
+}

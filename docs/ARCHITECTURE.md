@@ -107,16 +107,39 @@ el árbol y se componen en `main.wgsl`:
 
 ```
  core.tick()      resortes, TTL, idle (respiración, parpadeo)
- Frame::build()   el árbol → un uniform de 288 bytes
+ Frame::build()   el árbol → un uniform de 336 bytes
  GPU, por píxel:
    main.wgsl        TransformController: posición, rotación, escala, yaw
    silhouette.wgsl  esqueleto (FK) + SDF de torso/brazos/piernas
    extensions.wgsl  púas, fragmentos, rayo
    main.wgsl        mezcla de núcleos (mezcla de campos de distancia = morph orgánico)
                     volumen falso: normal del gradiente del SDF + luz que sigue al yaw
-   face.wgsl        máscara, ojos, boca: 2D nítido, pegado a la cabeza
+   face.wgsl        placa, ojos, boca: 2D nítido, pegado a la cabeza
    fx.wgsl          glitch, scanlines
 ```
+
+### Ojos
+
+Los dos ojos salen de una misma función (`eye_layer` en `face.wgsl`) que trabaja en espacio de
+ojo: unidad = R (radio exterior del anillo), x positiva hacia el centro de la cara; el ojo derecho
+es el espejo del izquierdo. Capas, de atrás hacia delante:
+
+```
+placa 8.08 × 3.31 R (2.44:1) · centros a ±2.03 R, 0.365 R bajo el centro de la placa
+silueta   almendra (dos arcos entre esquinas en punta) + púa superior (hacia el centro)
+          + púa inferior (hacia fuera) + talón en la esquina interior
+anillo    0.905 R .. 1 R, mínimo 1.1 px para seguir legible a tamaño normal
+iris      0.585 R          ┐ se desplazan juntos con `gaze` (máx. 0.27 R, siempre dentro del anillo)
+centro    0.305 R          ┘ y los recorta una ventana de párpados que se cierra con `open`
+```
+
+- `open` (× parpadeo de idle) cierra la ventana de párpados: los círculos se recortan, no se
+  aplastan. Con `open = 0` no asoma nada del iris ni del centro.
+- `size` escala disco, anillo, iris y centro; la silueta crece la mitad. Con placa, todo el ojo
+  queda recortado dentro de ella.
+- Las proporciones son constantes al principio de `face.wgsl`, ajustadas contra la imagen de
+  referencia. Los colores vienen del estilo (`mask`, `eye_shell`, `eye_ring`, `eyes`, `pupil`).
+- Halo y brillo propios de la cara escalan con `style.glow`: con `glow: 0` los colores salen planos.
 
 Partir esto en passes reales (silueta a media resolución, etc.) es posible sin tocar el árbol.
 Hoy no hace falta.
@@ -130,6 +153,17 @@ La RAM (~165 MB de working set) es casi toda del driver DX12. Bajarla queda pend
 
 La forma (árbol) y el look están separados. El look es un preset JSON en `assets/styles/`
 (paleta, contorno, glow, scanlines, glitch) que **se recarga en caliente** al guardar el archivo.
+
+| Clave de `palette` | Qué pinta | Si falta |
+|--------------------|-----------|----------|
+| `body`, `rim`, `hair`, `tip` | silueta, contorno, púas | valores de `construct` |
+| `mask` | placa | `#39ff88` |
+| `eyes` | iris (y borde del rayo) | `#7fe8ff` |
+| `eye_shell` | silueta y disco de cada ojo | = `body` |
+| `eye_ring` | anillo de cada ojo | = `mask` |
+| `pupil` | centro de cada ojo | `#9a9a9a` |
+
+`capri-eyes.json` reproduce la referencia de los ojos con colores planos y efectos apagados.
 Futuro: mods de render = passes WGSL extra que solo leen el frame y su preset, nunca el árbol.
 
 ---
@@ -147,7 +181,7 @@ capri/
 │  │   └─ shaders/{common,silhouette,extensions,face,fx,main}.wgsl
 │  └─ capri-app/        binario `capri`: ventana + loop
 ├─ controllers/         binario `capri-ctl` + escenarios .jsonl de verificación visual
-├─ assets/styles/       presets gráficos (construct.json, mono.json)
+├─ assets/styles/       presets gráficos (construct.json, mono.json, capri-eyes.json)
 └─ docs/
 ```
 

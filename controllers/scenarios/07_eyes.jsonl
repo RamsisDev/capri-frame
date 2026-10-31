@@ -1,0 +1,41 @@
+# EYES · base visual de los ojos. Ver con: capri --style assets/styles/capri-eyes.json
+# Núcleo eyes + placa, mirada centrada: placa verde 2.45:1, silueta negra con púa superior hacia el centro e inferior hacia fuera, anillo verde, disco azul, centro gris
+{"s":"face","set":{"expr":"neutral","gaze":[0,0]}}
+{"s":"morph","set":{"core":"eyes","mask":true}}
+{"wait":2500}
+# Mirada: derecha, izquierda, arriba, abajo y diagonales. Azul y gris se mueven juntos sin salir del anillo; silueta y anillo quietos
+{"s":"face","set":{"gaze":[1,0]}}
+{"wait":700,"s":"face","set":{"gaze":[-1,0]}}
+{"wait":700,"s":"face","set":{"gaze":[0,1]}}
+{"wait":700,"s":"face","set":{"gaze":[0,-1]}}
+{"wait":700,"s":"face","set":{"gaze":[1,1]}}
+{"wait":700,"s":"face","set":{"gaze":[-1,-1]}}
+{"wait":700,"s":"face","set":{"gaze":[0,0]}}
+# Guiño del ojo izquierdo: los párpados recortan azul y gris hasta ocultarlos; el ojo derecho sigue parpadeando solo
+{"wait":900,"s":"face","set":{"eye.l.open":0}}
+{"wait":1500,"s":"face","set":{"eye.l.open":1}}
+# Guiño del ojo derecho
+{"wait":700,"s":"face","set":{"eye.r.open":0}}
+{"wait":1500,"s":"face","set":{"eye.r.open":1}}
+# Apertura parcial (0.5 y 0.25): los círculos se recortan, no se aplastan
+{"wait":700,"s":"face","set":{"eye.l.open":0.5,"eye.r.open":0.25}}
+# Cierre completo: solo quedan silueta, disco negro y anillo
+{"wait":1500,"s":"face","set":{"eye.l.open":0,"eye.r.open":0}}
+{"wait":1500,"s":"face","set":{"eye.l.open":1,"eye.r.open":1}}
+# Tamaños: izquierdo 1.35, derecho 0.7. Disco, iris y centro escalan entero; la silueta crece la mitad; nada sale de la placa
+{"wait":900,"s":"face","set":{"eye.l.size":1.35,"eye.r.size":0.7}}
+{"wait":1500,"s":"face","set":{"eye.l.size":0.7,"eye.r.size":1.35}}
+{"wait":1500,"s":"face","set":{"eye.l.size":1,"eye.r.size":1}}
+# Presets sobre la base nueva: surprised, happy, angry, sleep, neutral
+{"wait":900,"s":"face","set":{"expr":"surprised"}}
+{"wait":1100,"s":"face","set":{"expr":"happy"}}
+{"wait":1100,"s":"face","set":{"expr":"angry"}}
+{"wait":1100,"s":"face","set":{"expr":"sleep"}}
+{"wait":1100,"s":"face","set":{"expr":"neutral"}}
+# Transiciones: eyes+placa → full (la placa se encoge sobre la cabeza) → eyes sin placa → bolt → eyes+placa → full
+{"wait":1000,"s":"morph","set":{"core":"full"}}
+{"wait":2000,"s":"morph","set":{"core":"eyes"}}
+{"wait":2000,"s":"morph","set":{"core":"bolt"}}
+{"wait":2500,"s":"morph","set":{"core":"eyes","mask":true}}
+{"wait":2000,"s":"morph","set":{"core":"full"}}
+{"wait":1500}

@@ -18,6 +18,9 @@ struct Frame {
   col_eyes: vec4<f32>,
   col_hair: vec4<f32>,
   col_tip: vec4<f32>,
+  col_shell: vec4<f32>, // silueta del ojo + disco
+  col_ring: vec4<f32>,  // anillo del ojo
+  col_pupil: vec4<f32>, // centro del ojo
   fx: vec4<f32>,       // glow, densidad scanlines, fuerza scanlines, glitch
   fx2: vec4<f32>,      // contorno px
 };
@@ -63,6 +66,34 @@ fn sd_ellipse(p: vec2<f32>, r: vec2<f32>) -> f32 {
   let k0 = length(p / r);
   let k1 = max(length(p / (r * r)), 1e-5);
   return k0 * (k0 - 1.0) / k1;
+}
+
+// Triángulo exacto (Inigo Quilez). Negativo dentro.
+fn sd_triangle(p: vec2<f32>, p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>) -> f32 {
+  let e0 = p1 - p0;
+  let e1 = p2 - p1;
+  let e2 = p0 - p2;
+  let v0 = p - p0;
+  let v1 = p - p1;
+  let v2 = p - p2;
+  let q0 = v0 - e0 * clamp(dot(v0, e0) / dot(e0, e0), 0.0, 1.0);
+  let q1 = v1 - e1 * clamp(dot(v1, e1) / dot(e1, e1), 0.0, 1.0);
+  let q2 = v2 - e2 * clamp(dot(v2, e2) / dot(e2, e2), 0.0, 1.0);
+  let s = sign(e0.x * e2.y - e0.y * e2.x);
+  let d = min(min(vec2<f32>(dot(q0, q0), s * (v0.x * e0.y - v0.y * e0.x)),
+                  vec2<f32>(dot(q1, q1), s * (v1.x * e1.y - v1.y * e1.x))),
+                  vec2<f32>(dot(q2, q2), s * (v2.x * e2.y - v2.y * e2.x)));
+  return -sqrt(d.x) * sign(d.y);
+}
+
+// Disco cuyo arco menor une `a` con `b`, abombado `sag` (flecha) hacia la izquierda de a→b.
+// La intersección de dos de estos discos da una almendra con puntas agudas.
+fn sd_arc_disc(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>, sag: f32) -> f32 {
+  let ab = b - a;
+  let h = 0.5 * length(ab);
+  let left = vec2<f32>(-ab.y, ab.x) / (2.0 * h);
+  let r = (h * h + sag * sag) / (2.0 * sag);
+  return length(p - (0.5 * (a + b) + left * (sag - r))) - r;
 }
 
 // Cobertura antialias de un SDF dado el tamaño de píxel.

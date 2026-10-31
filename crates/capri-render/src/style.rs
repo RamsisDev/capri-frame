@@ -22,10 +22,18 @@ pub struct Style {
 pub struct Palette {
     pub body: String,
     pub rim: String,
+    /// Placa de la cara.
     pub mask: String,
+    /// Iris (disco central de color). También tiñe el borde del rayo.
     pub eyes: String,
     pub hair: String,
     pub tip: String,
+    /// Silueta alrededor de cada ojo y disco bajo el iris. Sin valor = `body`.
+    pub eye_shell: Option<String>,
+    /// Anillo fino que rodea el disco del ojo. Sin valor = `mask`.
+    pub eye_ring: Option<String>,
+    /// Disco central del ojo, dentro del iris.
+    pub pupil: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -64,6 +72,9 @@ impl Default for Palette {
             eyes: "#7fe8ff".into(),
             hair: "#ff3df0".into(),
             tip: "#39ff88".into(),
+            eye_shell: None,
+            eye_ring: None,
+            pupil: "#9a9a9a".into(),
         }
     }
 }
@@ -137,5 +148,16 @@ mod tests {
     fn hex_parses() {
         assert_eq!(super::hex("#ff0000"), [1.0, 0.0, 0.0, 1.0]);
         assert_eq!(super::hex("nope"), [1.0, 0.0, 1.0, 1.0]);
+    }
+
+    /// Los presets de `assets/styles` cargan, incluidos los que no traen las claves nuevas.
+    #[test]
+    fn bundled_styles_parse() {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/styles");
+        for name in ["construct.json", "mono.json", "capri-eyes.json"] {
+            let text = std::fs::read_to_string(format!("{dir}/{name}")).unwrap();
+            let style: super::Style = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert_ne!(super::hex(&style.palette.pupil), [1.0, 0.0, 1.0, 1.0], "{name}");
+        }
     }
 }

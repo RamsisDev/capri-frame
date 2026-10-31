@@ -35,6 +35,10 @@ pub struct Frame {
     pub col_eyes: [f32; 4],
     pub col_hair: [f32; 4],
     pub col_tip: [f32; 4],
+    /// silueta del ojo + disco, anillo del ojo, centro del ojo
+    pub col_shell: [f32; 4],
+    pub col_ring: [f32; 4],
+    pub col_pupil: [f32; 4],
     /// glow, densidad scanlines, fuerza scanlines, glitch
     pub fx: [f32; 4],
     /// grosor contorno (px), -, -, -
@@ -75,6 +79,9 @@ impl Frame {
             col_eyes: hex(&p.eyes),
             col_hair: hex(&p.hair),
             col_tip: hex(&p.tip),
+            col_shell: hex(p.eye_shell.as_deref().unwrap_or(&p.body)),
+            col_ring: hex(p.eye_ring.as_deref().unwrap_or(&p.mask)),
+            col_pupil: hex(&p.pupil),
             fx: [style.glow, style.scanlines.density, style.scanlines.strength, style.glitch.rate],
             fx2: [style.outline, 0.0, 0.0, 0.0],
         }

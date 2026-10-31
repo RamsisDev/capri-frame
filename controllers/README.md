@@ -28,6 +28,7 @@ argumentos a un `.exe`:
 | `04_extensions.jsonl` | púas, fragmentos, opacidad de la silueta y global |
 | `05_ttl_silence.jsonl` | vuelta sola tras el `ttl`, descarte de `seq` atrasado, ráfagas |
 | `06_voice.jsonl` | pulsos de voz sobre la boca y la placa |
+| `07_eyes.jsonl` | base de los ojos: mirada, guiños, cierre, tamaños, presets y transiciones de núcleo (mejor con `--style assets/styles/capri-eyes.json`) |
 
 ## Formato `.jsonl`
 

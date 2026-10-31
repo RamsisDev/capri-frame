@@ -22,9 +22,9 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | Clave | Rango | Base | Qué hace |
 |-------|-------|------|----------|
 | `expr` | `neutral` `focus` `happy` `angry` `sad` `surprised` `sleep` | — | preset de expresión |
-| `eye.l.open`, `eye.r.open` | 0..1 | 1 | apertura de cada ojo |
-| `eye.l.size`, `eye.r.size` | ~0.5..1.5 | 1 | tamaño de cada ojo |
-| `gaze.x`, `gaze.y` (o `gaze: [x,y]`) | -1..1 | 0 | mirada |
+| `eye.l.open`, `eye.r.open` | 0..1 | 1 | apertura de los párpados de cada ojo (se combina con el parpadeo automático) |
+| `eye.l.size`, `eye.r.size` | ~0.5..1.5 | 1 | tamaño de cada ojo (disco e iris; la silueta crece la mitad) |
+| `gaze.x`, `gaze.y` (o `gaze: [x,y]`) | -1..1 | 0 | mirada: mueve iris y centro dentro del anillo (el vector se limita a longitud 1) |
 | `mask.glow` | 0..1 | 0.6 | brillo de la placa |
 | `mouth.open` | 0..1 | 0 | apertura de la boca |
 | `mouth.curve` | -1..1 | 0 | triste … sonrisa |

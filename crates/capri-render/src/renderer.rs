@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn frame_matches_wgsl_size() {
-        // 18 vec4<f32> en `struct Frame` de common.wgsl
-        assert_eq!(std::mem::size_of::<crate::Frame>(), 18 * 16);
+        // 21 vec4<f32> en `struct Frame` de common.wgsl
+        assert_eq!(std::mem::size_of::<crate::Frame>(), 21 * 16);
     }
 }
