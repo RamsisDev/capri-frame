@@ -25,6 +25,23 @@ pub fn expr(name: &str) -> Option<Preset> {
     })
 }
 
+/// `voice.viseme`: una forma de boca entera; el resto de pesos vuelve a 0.
+/// Acepta el nombre en minúsculas o mayúsculas (`"A"`, `"mbp"`, `"F/L"` o `"fl"`).
+pub fn viseme(name: &str) -> Option<Preset> {
+    const ALL: [Preset; 8] = [
+        &[("viseme.x", 1.0), ("viseme.mbp", 0.0), ("viseme.a", 0.0), ("viseme.e", 0.0), ("viseme.i", 0.0), ("viseme.o", 0.0), ("viseme.u", 0.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 1.0), ("viseme.a", 0.0), ("viseme.e", 0.0), ("viseme.i", 0.0), ("viseme.o", 0.0), ("viseme.u", 0.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 0.0), ("viseme.a", 1.0), ("viseme.e", 0.0), ("viseme.i", 0.0), ("viseme.o", 0.0), ("viseme.u", 0.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 0.0), ("viseme.a", 0.0), ("viseme.e", 1.0), ("viseme.i", 0.0), ("viseme.o", 0.0), ("viseme.u", 0.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 0.0), ("viseme.a", 0.0), ("viseme.e", 0.0), ("viseme.i", 1.0), ("viseme.o", 0.0), ("viseme.u", 0.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 0.0), ("viseme.a", 0.0), ("viseme.e", 0.0), ("viseme.i", 0.0), ("viseme.o", 1.0), ("viseme.u", 0.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 0.0), ("viseme.a", 0.0), ("viseme.e", 0.0), ("viseme.i", 0.0), ("viseme.o", 0.0), ("viseme.u", 1.0), ("viseme.fl", 0.0)],
+        &[("viseme.x", 0.0), ("viseme.mbp", 0.0), ("viseme.a", 0.0), ("viseme.e", 0.0), ("viseme.i", 0.0), ("viseme.o", 0.0), ("viseme.u", 0.0), ("viseme.fl", 1.0)],
+    ];
+    let key = name.to_ascii_lowercase().replace('/', "");
+    crate::body::VISEMES.iter().position(|v| *v == key).map(|i| ALL[i])
+}
+
 /// `body.pose`
 pub fn pose(name: &str) -> Option<Preset> {
     Some(match name {

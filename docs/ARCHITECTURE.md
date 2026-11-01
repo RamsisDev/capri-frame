@@ -64,7 +64,7 @@ Sobre común (ver [PROTOCOL.md](PROTOCOL.md) para todas las claves):
 | `face`  | Control facial | `Face/*` (ojos, mirada, brillo de la placa, boca) |
 | `body`  | Control corporal | `Silhouette/*` + posición / rotación / yaw / escala globales |
 | `morph` | Control polimórfico, a gusto de la entidad | núcleos, opacidades, `Extensions/*` |
-| `voice` | Voz (previsto ya) | nivel de voz: se **suma** a la boca (aún sin dibujar) y al brillo de la placa |
+| `voice` | Voz | nivel de voz (se **suma** a la apertura de la boca y al brillo de la placa) y visemas |
 
 Una clave tiene **un solo stream dueño** (hay un test que lo garantiza): dos streams nunca se pelean.
 
@@ -107,7 +107,7 @@ el árbol y se componen en `main.wgsl`:
 
 ```
  core.tick()      resortes, TTL, idle (respiración, parpadeo)
- Frame::build()   el árbol → un uniform de 368 bytes
+ Frame::build()   el árbol → un uniform de 592 bytes (incluye el polígono de la boca)
  Hair::update()   pelo procedural → segundo uniform, solo al cruzar un umbral de giro
  GPU, por píxel:
    main.wgsl        TransformController: posición, rotación, escala, yaw
@@ -116,7 +116,7 @@ el árbol y se componen en `main.wgsl`:
    main.wgsl        mezcla de núcleos (mezcla de campos de distancia = morph orgánico)
                     volumen falso: normal del gradiente del SDF + luz que sigue al yaw
    face.wgsl        cabeza: pelo (hair.wgsl), cara oscura, ojos con su placa
-                    2D nítido, pegado a la cabeza (la boca aún no se dibuja)
+                    2D nítido, pegado a la cabeza, con la boca bajo la placa
    fx.wgsl          glitch, scanlines
 ```
 
@@ -151,8 +151,17 @@ centro    0.305 R         ┘ y quedan recortados dentro de la almendra
 
 ### Cabeza: pelo y cara
 
-La cabeza tiene cuatro partes: ojos (arriba), pelo, cara y boca (pendiente). De atrás hacia
-delante: pelo, cara oscura (la base), placa con los ojos.
+La cabeza tiene cuatro partes: ojos (arriba), pelo, cara y boca. De atrás hacia
+delante: pelo, cara oscura (la base), placa, boca, ojos.
+
+- **Boca** (`src/mouth.rs` + `sd_mouth` en `face.wgsl`): un polígono blanco de aristas rectas bajo
+  la placa, con las 8 formas de la hoja de visemas de referencia (X, MBP, A, E, I, O, U, F/L).
+  Todas comparten topología (borde superior e inferior con el mismo número de vértices), así la
+  mezcla de pesos `viseme.*` es una media de vértices y pasar de un visema a otro es un morph.
+  Lo que no cubren los visemas es la boca de reposo: X, que `mouth.open` abre hacia la A.
+  `mouth.curve` dobla la forma con una parábola (comisuras arriba o abajo) y la ensancha o
+  estrecha; pesa entero en X, MBP y A. La CPU manda el polígono ya mezclado; el shader solo lo
+  dibuja sobre la esfera de la cabeza, en todos los núcleos.
 
 - **Pelo** (`src/hair.rs` + `hair.wgsl`): una **plantilla** de ~75 triángulos planos medida sobre
   las referencias del personaje (render low-poly de frente; coincide con su silueta en un 94 %).
@@ -262,6 +271,5 @@ ese proceso hijo. `make check` queda reservado para verificaciones automáticas.
 ## 7. Pendiente
 
 - Verificar transparencia y click-through en macOS y Linux.
-- Visemas en `voice` (hoy solo `level`).
 - Morph libre: que la entidad agregue nodos nuevos al árbol (hoy ajusta los existentes).
 - Bajar RAM; partir passes si un estilo lo necesita; mods de render.

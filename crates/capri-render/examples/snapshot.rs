@@ -11,10 +11,21 @@
 //!   --bg RRGGBB                  fondo (24242c)
 //!   --grid                       hoja de contacto: filas = pitch, columnas = yaw
 //!   --yaws a,b,..  --pitches ..  valores de la hoja (-40,-20,0,20,40 × 15,0,-15)
+//!   --expr NOMBRE                preset de cara ya asentado: neutral|focus|happy|angry|sad|surprised|sleep
+//!   --viseme NOMBRE              x|mbp|a|e|i|o|u|fl (o "A", "F/L"): peso 1 a ese visema, 0 al resto
+//!   --open V --curve V           mouth.open y mouth.curve crudos (después de --expr)
+//!   --face                       encuadre de la cara (~13 × 11 R, cabeza al centro) en vez del pelo
+//!   --mouth-grid                 hoja de bocas: columnas = visemas (x mbp a e i o u fl), filas = curve;
+//!                                implica --face; tamaño de celda por defecto 300x260
+//!   --curves a,b,..              filas de --mouth-grid (1,0,-1)
 //! ```
-//! El centro de la cabeza cae siempre en el centro de la imagen (o de cada celda).
+//! El centro de la cabeza cae en el centro de la imagen (o de cada celda), salvo en el encuadre
+//! del pelo sin `--ppr`, que centra el pelo. `--ppr` manda sobre cualquier encuadre.
 
-use capri_core::State;
+use std::time::Instant;
+
+use capri_core::body::{Face, Node, VISEMES};
+use capri_core::{presets, State};
 use capri_render::{Frame, Renderer, Style};
 
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -36,6 +47,23 @@ struct Args {
     grid: bool,
     yaws: Vec<f32>,
     pitches: Vec<f32>,
+    /// Nombre (para la salida) y claves del preset de expresión.
+    expr: Option<(String, Preset)>,
+    viseme: Option<usize>,
+    open: Option<f32>,
+    curve: Option<f32>,
+    face: bool,
+    mouth_grid: bool,
+    curves: Vec<f32>,
+}
+
+/// Lista de (clave, valor) de un preset de `capri_core::presets`.
+type Preset = &'static [(&'static str, f32)];
+
+/// Índice en `VISEMES` de un nombre como lo acepta el protocolo ("A", "mbp", "F/L").
+fn viseme_index(name: &str) -> Result<usize, String> {
+    let key = name.to_ascii_lowercase().replace('/', "");
+    VISEMES.iter().position(|v| *v == key).ok_or(format!("visema desconocido: {name}"))
 }
 
 fn list(v: &str) -> Result<Vec<f32>, String> {
@@ -59,6 +87,13 @@ impl Args {
             grid: false,
             yaws: vec![-40.0, -20.0, 0.0, 20.0, 40.0],
             pitches: vec![15.0, 0.0, -15.0],
+            expr: None,
+            viseme: None,
+            open: None,
+            curve: None,
+            face: false,
+            mouth_grid: false,
+            curves: vec![1.0, 0.0, -1.0],
         };
         let mut it = std::env::args().skip(1);
         while let Some(flag) = it.next() {
@@ -85,7 +120,18 @@ impl Args {
                 "--grid" => a.grid = true,
                 "--yaws" => a.yaws = list(&value()?)?,
                 "--pitches" => a.pitches = list(&value()?)?,
-                "--help" | "-h" => return Err("uso: snapshot <out.png> [--yaw D] [--pitch D] [--roll D] [--style capri-eyes] [--size 1200x720] [--core eyes] [--spikes 1] [--len 1] [--ppr N] [--bg 24242c] [--grid] [--yaws ..] [--pitches ..]".into()),
+                "--expr" => {
+                    let v = value()?;
+                    let p = presets::expr(&v).ok_or(format!("expresión desconocida: {v}"))?;
+                    a.expr = Some((v, p));
+                }
+                "--viseme" => a.viseme = Some(viseme_index(&value()?)?),
+                "--open" => a.open = Some(num(value()?)?),
+                "--curve" => a.curve = Some(num(value()?)?),
+                "--face" => a.face = true,
+                "--mouth-grid" => (a.mouth_grid, a.face) = (true, true),
+                "--curves" => a.curves = list(&value()?)?,
+                "--help" | "-h" => return Err("uso: snapshot <out.png> [--yaw D] [--pitch D] [--roll D] [--style capri-eyes] [--size 1200x720] [--core eyes] [--spikes 1] [--len 1] [--ppr N] [--bg 24242c] [--grid] [--yaws ..] [--pitches ..] [--expr neutral|focus|happy|angry|sad|surprised|sleep] [--viseme x|mbp|a|e|i|o|u|fl] [--open V] [--curve V] [--face] [--mouth-grid] [--curves 1,0,-1]".into()),
                 f if f.starts_with("--") => return Err(format!("opción desconocida: {f}")),
                 _ if a.out.is_empty() => a.out = flag,
                 _ => return Err(format!("argumento de más: {flag}")),
@@ -112,10 +158,65 @@ fn load_style(name: &str) -> Result<Style, String> {
 const HAIR_W: f32 = 48.0;
 const HAIR_H: f32 = 28.0;
 const HAIR_MID: f32 = 4.0;
+/// Encuadre de la cara en R: la cara oscura mide ~9 R de ancho, de y=+2.3 a y=-4.6.
+const FACE_W: f32 = 13.0;
+const FACE_H: f32 = 11.0;
 
-/// Estado del cuerpo ya asentado (sin resortes ni tiempo) para un giro dado.
-fn pose(a: &Args, yaw: f32, pitch: f32, w: u32, h: u32) -> Result<State, String> {
+/// Lo que cambia de una celda a otra: giro y, en la hoja de bocas, visema y curva.
+#[derive(Clone, Copy)]
+struct Cell {
+    yaw: f32,
+    pitch: f32,
+    viseme: Option<usize>,
+    curve: Option<f32>,
+}
+
+/// Fija claves de la cara (streams face y voice) ya asentadas: el snapshot no anima.
+fn put(face: &mut Face, keys: &[(&str, f32)]) {
+    let now = Instant::now();
+    face.visit(&mut |_, key, p| {
+        if let Some(&(_, v)) = keys.iter().find(|(k, _)| *k == key) {
+            p.set(v, None, now);
+            p.value = p.target();
+        }
+    });
+}
+
+/// Expresión y boca: --expr, luego el visema, luego los valores crudos.
+fn mouth(a: &Args, cell: Cell, face: &mut Face) {
+    if let Some((_, e)) = a.expr {
+        put(face, e);
+    }
+    if let Some(p) = cell.viseme.and_then(|i| presets::viseme(VISEMES[i])) {
+        put(face, p);
+    }
+    if let Some(v) = a.open {
+        put(face, &[("mouth.open", v)]);
+    }
+    if let Some(v) = cell.curve {
+        put(face, &[("mouth.curve", v)]);
+    }
+}
+
+/// Píxeles por R y cuánto (en R) sube el centro del encuadre sobre la cabeza.
+fn framing(a: &Args, w: u32, h: u32) -> (f32, f32) {
+    let (w, h) = (w as f32, h as f32);
+    if let Some(ppr) = a.ppr {
+        return (ppr, 0.0);
+    }
+    if a.face {
+        return ((w / FACE_W).min(h / FACE_H), 0.0);
+    }
+    // Pelo entero (crecido con `--len`): ~44 R de ancho, de 8.5 R bajo la cabeza a 16.5 R sobre
+    // ella. Se centra el pelo, no la cabeza.
+    let grow = (a.spikes * a.len).max(0.4);
+    ((w / (HAIR_W * grow)).min(h / (HAIR_H * grow)), HAIR_MID * grow)
+}
+
+/// Estado del cuerpo ya asentado (sin resortes ni tiempo) para una celda.
+fn pose(a: &Args, cell: Cell, w: u32, h: u32) -> Result<State, String> {
     let mut state = State::default();
+    mouth(a, cell, &mut state.body.face);
     let b = &mut state.body;
     let (wf, we, wb) = match a.core.as_str() {
         "full" => (1.0, 0.0, 0.0),
@@ -130,7 +231,7 @@ fn pose(a: &Args, yaw: f32, pitch: f32, w: u32, h: u32) -> Result<State, String>
     b.extensions.spikes.amount.value = a.spikes;
     b.extensions.spikes.length.value = a.len;
     let t = &mut b.transform;
-    (t.yaw.value, t.pitch.value, t.roll.value) = (yaw, pitch, a.roll);
+    (t.yaw.value, t.pitch.value, t.roll.value) = (cell.yaw, cell.pitch, a.roll);
 
     // Escala y posición para que R mida `ppr` píxeles y el centro de la cabeza quede en el centro.
     // Igual que main.wgsl: centro y escala de la cara según los pesos de los núcleos.
@@ -138,11 +239,8 @@ fn pose(a: &Args, yaw: f32, pitch: f32, w: u32, h: u32) -> Result<State, String>
     let head_y = 0.245 + 0.006 * state.idle.breath; // skeleton().head.y de silhouette.wgsl
     let center_y = (head_y * wf + 0.02 * we + 0.27 * wb) / wsum;
     let fscale = (wf + 2.2 * we + 0.9 * wb) / wsum;
-    // Por defecto entra el pelo entero (crecido con `--len`): ~44 R de ancho, de 8.5 R bajo la
-    // cabeza a 16.5 R sobre ella. Se centra el pelo, no la cabeza.
-    let grow = (a.spikes * a.len).max(0.4);
-    let ppr = a.ppr.unwrap_or((w as f32 / (HAIR_W * grow)).min(h as f32 / (HAIR_H * grow)));
-    let lift = if a.ppr.is_some() { 0.0 } else { HAIR_MID * grow * ppr / h as f32 };
+    let (ppr, lift_r) = framing(a, w, h);
+    let lift = lift_r * ppr / h as f32;
     let scale = ppr / (h as f32 * fscale * EYE_R);
     let t = &mut state.body.transform;
     t.scale.value = scale;
@@ -200,10 +298,56 @@ fn write_png(path: &str, w: u32, h: u32, rgb: &[u8]) -> Result<(), String> {
     writer.write_image_data(rgb).map_err(|e| e.to_string())
 }
 
+/// Celdas de la hoja (por filas) y número de columnas. Sin hoja, una sola celda.
+fn layout(a: &Args) -> (Vec<Cell>, usize) {
+    let base = Cell { yaw: a.yaw, pitch: a.pitch, viseme: a.viseme, curve: a.curve };
+    if a.mouth_grid {
+        let row = |c: f32| (0..VISEMES.len()).map(move |i| Cell { viseme: Some(i), curve: Some(c), ..base });
+        return (a.curves.iter().flat_map(|&c| row(c)).collect(), VISEMES.len());
+    }
+    if a.grid {
+        let row = |pitch: f32| a.yaws.iter().map(move |&yaw| Cell { yaw, pitch, ..base });
+        return (a.pitches.iter().flat_map(|&p| row(p)).collect(), a.yaws.len());
+    }
+    (vec![base], 1)
+}
+
+/// Pega las celdas (por filas) en una hoja con 1 px de separación. Devuelve ancho, alto y RGB.
+fn sheet(tiles: &[Vec<u8>], cols: usize, w: u32, h: u32) -> (u32, u32, Vec<u8>) {
+    let (cols, rows) = (cols as u32, tiles.len().div_ceil(cols) as u32);
+    let (gw, gh) = (cols * w + cols - 1, rows * h + rows - 1);
+    let line = [0x50u8, 0x50, 0x5a];
+    let mut out: Vec<u8> = line.iter().copied().cycle().take((gw * gh * 3) as usize).collect();
+    for (n, tile) in tiles.iter().enumerate() {
+        let (x0, y0) = (n as u32 % cols * (w + 1), n as u32 / cols * (h + 1));
+        for y in 0..h {
+            let dst = (((y0 + y) * gw + x0) * 3) as usize;
+            out[dst..dst + (w * 3) as usize].copy_from_slice(&tile[(y * w * 3) as usize..][..(w * 3) as usize]);
+        }
+    }
+    (gw, gh, out)
+}
+
+/// Qué muestra la imagen, para la línea de salida.
+fn caption(a: &Args) -> String {
+    let expr = a.expr.as_ref().map_or("-", |(name, _)| name.as_str());
+    let face = format!("expr {expr} · open {:?}", a.open);
+    let mouth = format!("visema {:?} · curve {:?}", a.viseme.map(|i| VISEMES[i]), a.curve);
+    if a.mouth_grid {
+        let cols = format!("columnas visema {VISEMES:?} · filas curve {:?}", a.curves);
+        format!("{cols} · yaw {} pitch {} roll {} · {face}", a.yaw, a.pitch, a.roll)
+    } else if a.grid {
+        format!("columnas yaw {:?} · filas pitch {:?} · roll {} · {face} · {mouth}", a.yaws, a.pitches, a.roll)
+    } else {
+        format!("yaw {} pitch {} roll {} · {face} · {mouth}", a.yaw, a.pitch, a.roll)
+    }
+}
+
 fn run() -> Result<(), String> {
     let a = Args::parse()?;
     let style = load_style(&a.style)?;
-    let (w, h) = a.size.unwrap_or(if a.grid { (480, 300) } else { (1200, 720) });
+    let cell = if a.mouth_grid { (300, 260) } else if a.grid { (480, 300) } else { (1200, 720) };
+    let (w, h) = a.size.unwrap_or(cell);
     let mut r = Renderer::offscreen(w, h, FORMAT)?;
     let target = r.device().create_texture(&wgpu::TextureDescriptor {
         label: Some("snapshot"),
@@ -215,36 +359,17 @@ fn run() -> Result<(), String> {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
         view_formats: &[],
     });
-    let mut frame_for = |yaw, pitch| -> Result<Vec<u8>, String> {
-        let state = pose(&a, yaw, pitch, w, h)?;
+    // Una celda o una hoja de contacto: el caso suelto es una hoja de 1 × 1.
+    let (cells, cols) = layout(&a);
+    let mut tiles = Vec::with_capacity(cells.len());
+    for &cell in &cells {
+        let state = pose(&a, cell, w, h)?;
         let frame = Frame::build(&state, &style, w, h, true);
-        Ok(shoot(&mut r, &target, &frame, a.bg))
-    };
-
-    if !a.grid {
-        let rgb = frame_for(a.yaw, a.pitch)?;
-        write_png(&a.out, w, h, &rgb)?;
-        println!("{} · {w}x{h} · yaw {} pitch {} roll {}", a.out, a.yaw, a.pitch, a.roll);
-        return Ok(());
+        tiles.push(shoot(&mut r, &target, &frame, a.bg));
     }
-
-    // Hoja de contacto: columnas = yaw, filas = pitch; 1 px de separación entre celdas.
-    let (cols, rows) = (a.yaws.len() as u32, a.pitches.len() as u32);
-    let (gw, gh) = (cols * w + cols - 1, rows * h + rows - 1);
-    let line = [0x50u8, 0x50, 0x5a];
-    let mut sheet: Vec<u8> = line.iter().copied().cycle().take((gw * gh * 3) as usize).collect();
-    for (j, &pitch) in a.pitches.iter().enumerate() {
-        for (i, &yaw) in a.yaws.iter().enumerate() {
-            let tile = frame_for(yaw, pitch)?;
-            let (x0, y0) = (i as u32 * (w + 1), j as u32 * (h + 1));
-            for y in 0..h {
-                let dst = (((y0 + y) * gw + x0) * 3) as usize;
-                sheet[dst..dst + (w * 3) as usize].copy_from_slice(&tile[(y * w * 3) as usize..][..(w * 3) as usize]);
-            }
-        }
-    }
-    write_png(&a.out, gw, gh, &sheet)?;
-    println!("{} · {gw}x{gh} · columnas yaw {:?} · filas pitch {:?} · roll {}", a.out, a.yaws, a.pitches, a.roll);
+    let (gw, gh, rgb) = sheet(&tiles, cols, w, h);
+    write_png(&a.out, gw, gh, &rgb)?;
+    println!("{} · {gw}x{gh} · {}", a.out, caption(&a));
     Ok(())
 }
 

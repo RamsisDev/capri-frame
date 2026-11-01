@@ -6,6 +6,7 @@
 
 mod frame;
 pub mod hair;
+pub mod mouth;
 mod renderer;
 pub mod style;
 

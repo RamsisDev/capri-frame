@@ -2,6 +2,7 @@
 
 mod connection;
 mod eyes;
+mod mic;
 mod process;
 
 use std::io::Write;
@@ -11,7 +12,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use eframe::egui::{self, Color32, RichText};
 
 use connection::{Connection, Event};
-use eyes::Eyes;
+use eyes::{Eyes, VISEMES};
+use mic::{Mic, Opening};
 use process::Preview;
 
 const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
@@ -73,12 +75,28 @@ struct Controller {
     style_path: Option<PathBuf>,
     style_text: String,
     last_style: Instant,
+    /// Micrófono de prueba: su volumen va a `voice.level` (abre la boca de reposo).
+    /// `mic_on` es la casilla; `mic` el stream vivo, que se reabre solo si cae o no hay.
+    mic_on: bool,
+    mic: Option<Mic>,
+    mic_opening: Option<Opening>,
+    mic_failed_at: Option<Instant>,
+    mic_level: f32,
+    mic_sensitivity: f32,
+    mic_status: String,
+    mic_error: bool,
+    /// Último JSON entregado a la conexión.
+    queued: String,
 }
+
+/// Validez de cada nivel de voz: si el panel deja de mandar, la boca vuelve sola al reposo.
+const VOICE_TTL_MS: u32 = 250;
 
 impl Controller {
     fn new(port: u16, preview: Option<Preview>, style_path: Option<PathBuf>) -> Self {
         let eyes = Eyes::default();
-        let connection = Connection::start(port, eyes.json());
+        let eyes_json = eyes.json();
+        let connection = Connection::start(port, eyes_json.clone());
         Self {
             eyes,
             connection,
@@ -92,7 +110,82 @@ impl Controller {
             notice: String::new(),
             style_text: String::new(),
             last_style: Instant::now() - Duration::from_secs(2),
+            mic_on: false,
+            mic: None,
+            mic_opening: None,
+            mic_failed_at: None,
+            mic_level: 0.0,
+            mic_sensitivity: 0.5,
+            mic_status: String::new(),
+            mic_error: false,
+            queued: eyes_json,
         }
+    }
+
+    /// Objetivos del panel y, con el micrófono encendido, el nivel de voz (con ttl corto).
+    fn outgoing(&self) -> String {
+        let mut messages = self.eyes.messages();
+        if self.mic_on
+            && let Some(list) = messages.as_array_mut()
+        {
+            let level = (self.mic_level * 100.0).round() / 100.0;
+            list.push(serde_json::json!({"s": "voice", "ttl": VOICE_TTL_MS, "set": {"level": level}}));
+        }
+        messages.to_string()
+    }
+
+    fn toggle_mic(&mut self, on: bool) {
+        self.mic_on = on;
+        self.mic = None;
+        self.mic_opening = None;
+        self.mic_failed_at = None;
+        self.mic_level = 0.0;
+        self.mic_error = false;
+        self.mic_status = if on { "Abriendo el micrófono…".into() } else { String::new() };
+        if on {
+            self.eyes.viseme = None; // la voz abre la boca de reposo; un visema la taparía
+        }
+    }
+
+    /// Lleva el micrófono: detecta si el stream cae, lo reabre cada `mic::RETRY` en segundo
+    /// plano y lee el nivel (0 mientras no hay stream).
+    fn poll_mic(&mut self, now: Instant) {
+        if let Some(reason) = self.mic.as_ref().and_then(Mic::fault).map(str::to_owned) {
+            self.mic_failure(format!("Micrófono caído: {reason}"), now);
+            self.mic = None;
+        }
+        if let Some(result) = self.mic_opening.as_ref().and_then(Opening::poll) {
+            self.mic_opening = None;
+            match result {
+                Ok(mic) => {
+                    self.mic_status = format!("Escuchando: {}", mic.device);
+                    self.mic_error = false;
+                    self.mic = Some(mic);
+                }
+                Err(error) => self.mic_failure(format!("Sin micrófono: {error}"), now),
+            }
+        }
+        if self.mic.is_none() && self.mic_opening.is_none() && mic::retry_due(self.mic_failed_at, now) {
+            self.mic_opening = Some(Opening::spawn());
+        }
+        self.mic_level = match &mut self.mic {
+            Some(mic) => {
+                if mic.take_rerouted() {
+                    self.mic_status = format!("Escuchando: {} (el sistema cambió la ruta de audio)", mic.device);
+                }
+                if let Some(line) = mic.xrun_summary(now) {
+                    eprintln!("{line}");
+                }
+                mic.level(self.mic_sensitivity)
+            }
+            None => 0.0,
+        };
+    }
+
+    fn mic_failure(&mut self, reason: String, now: Instant) {
+        self.mic_status = format!("{reason}. Reconectando cada {} s…", mic::RETRY.as_secs());
+        self.mic_error = true;
+        self.mic_failed_at = Some(now);
     }
 
     fn save(&mut self) {
@@ -225,6 +318,81 @@ impl Controller {
         );
     }
 
+    fn mouth_controls(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Boca");
+        ui.monospace("voice → viseme.*");
+        ui.horizontal_wrapped(|ui| {
+            for (i, (label, _)) in VISEMES.iter().enumerate() {
+                if ui.selectable_label(self.eyes.viseme == Some(i), *label).clicked() {
+                    self.eyes.viseme = Some(i);
+                }
+            }
+            if ui.selectable_label(self.eyes.viseme.is_none(), "Reposo").clicked() {
+                self.eyes.viseme = None;
+            }
+        });
+        ui.small("Peso 1 al visema elegido y 0 al resto; Reposo los deja todos a 0.");
+        ui.add_space(6.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Emoción:");
+            for (label, curve) in [("Neutra", 0.0), ("Feliz", 1.0), ("Triste", -1.0)] {
+                if ui.button(label).clicked() {
+                    self.eyes.mouth_curve = curve;
+                }
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.monospace("face → mouth.open");
+            ui.add(
+                egui::Slider::new(&mut self.eyes.mouth_open, 0.0..=1.0)
+                    .step_by(0.01)
+                    .fixed_decimals(2)
+                    .text("Apertura en reposo · 0 X / 1 A"),
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.monospace("face → mouth.curve");
+            ui.add(
+                egui::Slider::new(&mut self.eyes.mouth_curve, -1.0..=1.0)
+                    .step_by(0.01)
+                    .fixed_decimals(2)
+                    .text("Emoción · -1 triste / 1 sonrisa"),
+            );
+        });
+        ui.add_space(6.0);
+        let mut on = self.mic_on;
+        ui.horizontal(|ui| {
+            if ui.checkbox(&mut on, "Micrófono").changed() {
+                self.toggle_mic(on);
+            }
+            ui.monospace("voice → level");
+        });
+        if self.mic_on {
+            ui.add(egui::ProgressBar::new(self.mic_level).desired_width(240.0).text(format!("{:.2}", self.mic_level)));
+            if self.mic_error {
+                ui.colored_label(Color32::from_rgb(240, 180, 90), &self.mic_status);
+            } else {
+                ui.small(&self.mic_status);
+            }
+            if let Some(mic) = &self.mic {
+                if !mic.heard {
+                    ui.colored_label(Color32::from_rgb(240, 180, 90), "Sin señal: el micrófono entrega silencio (¿silenciado o sin conectar?)");
+                }
+                if mic.xruns() > 0 {
+                    ui.small(format!("{} desbordes de búfer (se pierden unas muestras; no afecta al volumen)", mic.xruns()))
+                        .on_hover_text("cpal avisa con Xrun cuando el sistema marca un salto en la captura");
+                }
+            }
+            ui.add(
+                egui::Slider::new(&mut self.mic_sensitivity, 0.0..=1.0)
+                    .step_by(0.01)
+                    .fixed_decimals(2)
+                    .text("Sensibilidad"),
+            );
+            ui.small("El volumen abre la boca de reposo (X → A). Con un visema elegido solo aviva la placa.");
+        }
+    }
+
     fn yaw_controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Giro (volumen)");
         ui.horizontal(|ui| {
@@ -348,11 +516,15 @@ impl eframe::App for Controller {
                     .unwrap_or_else(|e| format!("No se pudo leer: {e}"));
             }
         }
-        ctx.request_repaint_after(Duration::from_millis(100));
+        if self.mic_on {
+            self.poll_mic(Instant::now());
+            ctx.request_repaint_after(Duration::from_millis(33)); // ~30 Hz, como la conexión
+        } else {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
-        let before = self.eyes.clone();
         let mut resend = false;
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -371,6 +543,8 @@ impl eframe::App for Controller {
                 ui.add_space(8.0);
                 egui::Frame::group(ui.style()).show(ui, |ui| self.gaze_controls(ui));
                 ui.add_space(8.0);
+                egui::Frame::group(ui.style()).show(ui, |ui| self.mouth_controls(ui));
+                ui.add_space(8.0);
                 egui::Frame::group(ui.style()).show(ui, |ui| self.yaw_controls(ui));
                 ui.add_space(8.0);
                 egui::Frame::group(ui.style()).show(ui, |ui| self.context_controls(ui));
@@ -382,7 +556,7 @@ impl eframe::App for Controller {
                         ui.ctx().copy_text(serde_json::to_string_pretty(&self.eyes.messages()).unwrap());
                         self.notice = "JSON copiado al portapapeles".into();
                     }
-                    if ui.add_enabled(self.connected && self.sent == self.eyes.json(),
+                    if ui.add_enabled(self.connected && !self.mic_on && self.sent == self.queued,
                         egui::Button::new("Aprobar y guardar"))
                         .on_hover_text("Guarda los objetivos en controllers/captures como escenario .jsonl").clicked() {
                         self.save();
@@ -411,8 +585,10 @@ impl eframe::App for Controller {
                 }
             });
         });
-        if self.eyes != before || resend {
-            self.connection.set(self.eyes.json());
+        let out = self.outgoing();
+        if out != self.queued || resend {
+            self.connection.set(out.clone());
+            self.queued = out;
         }
     }
 }

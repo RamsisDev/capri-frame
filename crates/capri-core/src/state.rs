@@ -18,7 +18,8 @@ pub struct State {
 
 /// Claves que son presets (se aplican antes que los valores crudos del mismo mensaje,
 /// así `{"core":"eyes","silhouette":0.3}` = solo ojos + silueta tenue).
-const PRESET_KEYS: [(Stream, &str); 3] = [(Stream::Face, "expr"), (Stream::Body, "pose"), (Stream::Morph, "core")];
+const PRESET_KEYS: [(Stream, &str); 4] =
+    [(Stream::Face, "expr"), (Stream::Body, "pose"), (Stream::Morph, "core"), (Stream::Voice, "viseme")];
 
 impl State {
     pub fn apply(&mut self, env: &Envelope, now: Instant) {
@@ -48,6 +49,7 @@ impl State {
                     (Stream::Face, "expr") => presets::expr(&name),
                     (Stream::Body, "pose") => presets::pose(&name),
                     (Stream::Morph, "core") => presets::core(&name),
+                    (Stream::Voice, "viseme") => presets::viseme(&name),
                     _ => return self.warn(s, k, "no acepta texto"),
                 };
                 match preset {
@@ -112,6 +114,18 @@ mod tests {
         let mut s = State::default();
         send(&mut s, r#"{"s":"face","set":{"arm.l":90}}"#, Instant::now());
         assert_eq!(s.body.silhouette.arm_left.target(), 0.0);
+    }
+
+    #[test]
+    fn viseme_preset_sets_one_weight() {
+        let mut s = State::default();
+        let now = Instant::now();
+        send(&mut s, r#"{"s":"voice","ttl":150,"set":{"viseme":"F/L"}}"#, now);
+        let w: Vec<f32> = s.body.face.mouth.viseme.iter().map(|p| p.target()).collect();
+        assert_eq!(w, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+        send(&mut s, r#"{"s":"voice","set":{"viseme":"A"}}"#, now);
+        assert_eq!(s.body.face.mouth.viseme[2].target(), 1.0);
+        assert_eq!(s.body.face.mouth.viseme[7].target(), 0.0);
     }
 
     #[test]

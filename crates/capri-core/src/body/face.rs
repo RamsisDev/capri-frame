@@ -3,7 +3,7 @@ use crate::Param;
 use capri_protocol::Stream::{self, Face as F, Voice};
 
 /// La cara: los dos ojos con su placa (Mask) y la boca. Sobrevive en todos los núcleos.
-/// La placa es parte de los ojos: siempre se dibuja con ellos. La boca aún no se dibuja.
+/// La placa es parte de los ojos: siempre se dibuja con ellos. La boca va bajo la placa.
 #[derive(Debug, Clone)]
 pub struct Face {
     pub mask: Mask,
@@ -38,7 +38,15 @@ pub struct Mouth {
     pub curve: Param,
     /// Nivel de voz 0..1 (stream `voice`). Se SUMA a `open`.
     pub voice: Param,
+    /// Pesos de cada visema (stream `voice`), en el orden de [`VISEMES`]. Suman 0..1: lo que
+    /// falta hasta 1 es la boca de reposo (X, que se abre con `open`).
+    pub viseme: [Param; VISEMES.len()],
 }
+
+/// Visemas, en el orden de la referencia: X (reposo), MBP, A, E, I, O, U, F/L.
+pub const VISEMES: [&str; 8] = ["x", "mbp", "a", "e", "i", "o", "u", "fl"];
+const VISEME_KEYS: [&str; 8] =
+    ["viseme.x", "viseme.mbp", "viseme.a", "viseme.e", "viseme.i", "viseme.o", "viseme.u", "viseme.fl"];
 
 impl Default for Face {
     fn default() -> Self {
@@ -52,6 +60,7 @@ impl Default for Face {
                 open: Param::new(0.0),
                 curve: Param::new(0.0),
                 voice: Param::with_speed(0.0, 30.0),
+                viseme: [Param::with_speed(0.0, 40.0); VISEMES.len()],
             },
             gaze_x: Param::with_speed(0.0, 18.0),
             gaze_y: Param::with_speed(0.0, 18.0),
@@ -72,5 +81,8 @@ impl Node for Face {
         f(F, "mouth.open", &mut self.mouth.open);
         f(F, "mouth.curve", &mut self.mouth.curve);
         f(Voice, "level", &mut self.mouth.voice);
+        for (key, p) in VISEME_KEYS.into_iter().zip(&mut self.mouth.viseme) {
+            f(Voice, key, p);
+        }
     }
 }

@@ -4,6 +4,7 @@
 use bytemuck::{Pod, Zeroable};
 use capri_core::State;
 
+use crate::mouth;
 use crate::style::{hex, Style};
 
 #[repr(C)]
@@ -47,6 +48,12 @@ pub struct Frame {
     pub fx2: [f32; 4],
     /// cabeceo, inclinación lateral de la cabeza (rad), -, -
     pub head: [f32; 4],
+    /// boca: vértices del polígono, origen x, origen y (espacio de la placa, R), -
+    pub mouth_info: [f32; 4],
+    /// color de la boca
+    pub col_mouth: [f32; 4],
+    /// polígono de la boca ya mezclado (visemas + emoción), dos vértices por vec4
+    pub mouth: [[f32; 4]; mouth::MAX_VERTS / 2],
 }
 
 impl Frame {
@@ -90,6 +97,13 @@ impl Frame {
             fx: [style.glow, style.scanlines.density, style.scanlines.strength, style.glitch.rate],
             fx2: [style.outline, 0.0, 0.0, 0.0],
             head: [rad(t.pitch.value), rad(t.roll.value), 0.0, 0.0],
+            mouth_info: [mouth::VERTS as f32, mouth::ORIGIN[0], mouth::ORIGIN[1], 0.0],
+            col_mouth: hex(&p.mouth),
+            mouth: mouth::pack(&mouth::shape(
+                f.mouth.viseme.map(|w| w.value),
+                (f.mouth.open.value + voice).clamp(0.0, 1.0),
+                f.mouth.curve.value,
+            )),
         }
     }
 }

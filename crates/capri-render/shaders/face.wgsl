@@ -1,7 +1,7 @@
 // ─── Face: cabeza = pelo (hair.wgsl) + cara oscura + EyeLeft, EyeRight y su placa ─
 // Capa 2D nítida pegada a la cabeza. Placa y ojos existen en todos los núcleos; la cara oscura
-// pesa con el núcleo `full` y el pelo con `spikes`. La boca aún no se dibuja.
-// De atrás hacia delante: pelo, cara, halo y placa, ojos.
+// pesa con el núcleo `full` y el pelo con `spikes`. La boca va bajo la placa, en todos los núcleos.
+// De atrás hacia delante: pelo, cara, halo y placa, boca, ojos.
 //
 // Las proporciones van en unidades de R = radio exterior del anillo del ojo.
 // Espacio de ojo: origen en el centro del ojo en reposo, y hacia arriba y x positiva HACIA EL
@@ -100,6 +100,35 @@ fn sd_face(u: vec2<f32>) -> f32 {
   let upper = sd_box(u - vec2<f32>(0.0, 0.65), vec2<f32>(4.5, 1.65), 0.9);
   let jaw = sd_ellipse(u - vec2<f32>(0.0, -0.4), vec2<f32>(4.45, 4.15));
   return smin(upper, jaw, 0.6);
+}
+
+// Boca: polígono de aristas rectas que llega ya mezclado de la CPU (src/mouth.rs: visemas +
+// emoción), en unidades R con origen en `F.mouth_info.yz` del espacio de la placa. Los trazos
+// finos (X, MBP) son el mismo polígono aplastado.
+fn mouth_vertex(i: u32) -> vec2<f32> {
+  let v = F.mouth[i / 2u];
+  return select(v.xy, v.zw, (i & 1u) == 1u);
+}
+
+// Distancia con signo a un polígono simple (Inigo Quilez). Admite vértices repetidos.
+fn sd_mouth(p: vec2<f32>) -> f32 {
+  let n = u32(F.mouth_info.x);
+  var prev = mouth_vertex(n - 1u);
+  var d = dot(p - prev, p - prev);
+  var s = 1.0;
+  for (var i = 0u; i < n; i++) {
+    let v = mouth_vertex(i);
+    let e = prev - v;
+    let w = p - v;
+    let b = w - e * clamp(dot(w, e) / max(dot(e, e), 1e-8), 0.0, 1.0);
+    d = min(d, dot(b, b));
+    let c = vec3<bool>((p.y >= v.y), (p.y < prev.y), (e.x * w.y > e.y * w.x));
+    if (all(c) || !any(c)) {
+      s = -s;
+    }
+    prev = v;
+  }
+  return s * sqrt(d);
 }
 
 // Efectos propios de la cara (halo, brillo). Escalan con `style.glow`: 0 = colores planos.
@@ -277,6 +306,9 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, head_w: f3
   let halo = exp(-max(dm, 0.0) * 1.4) * glow * 0.45 * fxk * facing;
   col = over(col, vec4<f32>(F.col_mask.rgb, halo));
   col = over(col, vec4<f32>(F.col_mask.rgb * mix(1.0, 0.75 + 0.35 * glow, fxk), plate));
+
+  // Boca, bajo la placa (la mezcla de visemas y la emoción llegan ya hechas).
+  col = over(col, vec4<f32>(F.col_mouth.rgb, aa(sd_mouth(u - F.mouth_info.yz), pxf) * facing));
 
   // Eyes
   let blink = F.root2.w;

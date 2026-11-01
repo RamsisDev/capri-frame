@@ -7,7 +7,7 @@ struct Frame {
   root2: vec4<f32>,    // escala, yaw, respiración, parpadeo
   cores: vec4<f32>,    // full, eyes, bolt, -
   eyes: vec4<f32>,     // abierto izq, abierto der, mirada x, mirada y
-  face: vec4<f32>,     // brillo placa, boca abierta, curva boca (sin dibujar), tamaño ojo izq
+  face: vec4<f32>,     // brillo placa, boca abierta, curva boca, tamaño ojo izq
   face2: vec4<f32>,    // tamaño ojo der, voz, curva al cerrar, -
   limbs0: vec4<f32>,   // cuello, torso, brazo izq, brazo der
   limbs1: vec4<f32>,   // pierna izq, pierna der, opacidad silueta, -
@@ -25,6 +25,9 @@ struct Frame {
   fx: vec4<f32>,       // glow, densidad scanlines, fuerza scanlines, glitch
   fx2: vec4<f32>,      // contorno px
   head: vec4<f32>,     // cabeceo, inclinación lateral de la cabeza, -, -
+  mouth_info: vec4<f32>, // vértices de la boca, origen x, origen y (placa, R), -
+  col_mouth: vec4<f32>,
+  mouth: array<vec4<f32>, 12>, // polígono de la boca, dos vértices por vec4 (MAX_VERTS / 2)
 };
 
 @group(0) @binding(0) var<uniform> F: Frame;

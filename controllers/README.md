@@ -31,6 +31,14 @@ se añade al cuerpo ni al controlador CLI. Usa el mismo WebSocket y los mismos s
 
 - Apertura y tamaño independientes, o vinculados, con valores numéricos editables.
 - Abrir, cerrar, entrecerrar, guiños, mirada por ejes y botones de dirección.
+- Boca: visema (X, MBP, A, E, I, O, U, F/L o reposo) como pesos `voice → viseme.*`, apertura
+  `mouth.open` y emoción `mouth.curve` (neutra, feliz, triste).
+- Micrófono: con la casilla activada, el volumen del micrófono por defecto se manda como
+  `voice → level` (ttl 250 ms, ~30 Hz) y abre la boca de reposo de X hacia A. Tiene medidor y
+  sensibilidad; avisa si el dispositivo solo entrega silencio. Si no hay micrófono o se
+  desconecta, reintenta cada 2 s mientras la casilla siga activa (nivel 0 entretanto); los
+  desbordes de búfer (xruns) solo se cuentan. Prueba manual del micrófono:
+  `cargo test -p capri-ctl --features visual --bin capri-eyes -- --ignored mic --nocapture`.
 - Ojos, cuerpo o rayo y zoom para comparar el mismo ajuste en contexto.
 - Claves exactas junto a cada control, JSON copiable y último mensaje enviado.
 - **Aprobar y guardar** crea `controllers/captures/eyes-<marca de tiempo>.jsonl`, sin sobrescribir
@@ -80,7 +88,7 @@ parcialmente ocultos por el contorno.
 | `03_cores.jsonl` | full → eyes → eyes + cara → bolt → mezcla cruda → full |
 | `04_extensions.jsonl` | pelo (`spikes`), fragmentos, opacidad de la silueta y global |
 | `05_ttl_silence.jsonl` | vuelta sola tras el `ttl`, descarte de `seq` atrasado, ráfagas |
-| `06_voice.jsonl` | pulsos de voz sobre el brillo de la placa (la boca aún no se dibuja) |
+| `06_voice.jsonl` | habla: visemas y nivel de voz sobre la boca y el brillo de la placa; luego los visemas con emoción |
 | `07_eyes.jsonl` | base de los ojos: mirada, guiños, cierre, tamaños, giro (yaw, pitch, roll), presets y transiciones de núcleo (mejor con `--style assets/styles/capri-eyes.json`) |
 
 ## Formato `.jsonl`

@@ -27,8 +27,8 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | `eye.l.size`, `eye.r.size` | ~0.5..1.5 | 1 | tamaño de cada ojo (disco e iris; la silueta crece la mitad) |
 | `gaze.x`, `gaze.y` (o `gaze: [x,y]`) | -1..1 | 0 | mirada: mueve juntos anillo, iris y centro; longitud 1 alcanza el límite donde el círculo central aún cabe entero en la almendra abierta |
 | `mask.glow` | 0..1 | 0.6 | brillo de la placa |
-| `mouth.open` | 0..1 | 0 | apertura de la boca (aún no se dibuja) |
-| `mouth.curve` | -1..1 | 0 | triste … sonrisa (aún no se dibuja) |
+| `mouth.open` | 0..1 | 0 | apertura de la boca de reposo: 0 = X (zigzag cerrado) … 1 = A. Solo pesa lo que no cubren los visemas |
+| `mouth.curve` | -1..1 | 0 | emoción de la boca: -1 triste (comisuras abajo, más estrecha) … 1 sonrisa (arriba, más ancha). Dobla todos los visemas; X, MBP y A del todo |
 
 ## `body`
 
@@ -64,14 +64,16 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 | Clave | Rango | Qué hace |
 |-------|-------|----------|
 | `level` | 0..1 | nivel de voz: se suma a `mouth.open` y aviva la placa (con `glow` > 0 en el estilo). Mandar con `ttl` corto (~120 ms) |
-
-Reservado: `viseme`.
+| `viseme` | `X` `MBP` `A` `E` `I` `O` `U` `F/L` | preset: forma de boca entera (peso 1 a ese visema, 0 al resto). Acepta minúsculas y `fl`. Mandar con `ttl` corto para que vuelva sola al reposo |
+| `viseme.x`, `viseme.mbp`, `viseme.a`, `viseme.e`, `viseme.i`, `viseme.o`, `viseme.u`, `viseme.fl` | 0..1 | pesos crudos de cada visema; se mezclan (morph de vértices). Lo que falta hasta 1 es la boca de reposo; si suman más de 1 se normalizan |
 
 ## Ejemplos
 
 ```jsonc
 // sorpresa que dura 1.5 s y vuelve sola
 {"s":"face","ttl":1500,"set":{"expr":"surprised"}}
+// habla: visema + nivel, cada uno vuelve solo al reposo
+{"s":"voice","ttl":120,"set":{"viseme":"A","level":0.7}}
 // solo ojos (con su placa)
 {"s":"morph","set":{"core":"eyes"}}
 // varios streams en un frame

@@ -292,8 +292,8 @@ mod tests {
 
     #[test]
     fn frame_matches_wgsl_size() {
-        // 23 vec4<f32> en `struct Frame` de common.wgsl
-        assert_eq!(std::mem::size_of::<crate::Frame>(), 23 * 16);
+        // 25 vec4<f32> + el polígono de la boca en `struct Frame` de common.wgsl
+        assert_eq!(std::mem::size_of::<crate::Frame>(), (25 + crate::mouth::MAX_VERTS / 2) * 16);
         // 2 + 224 vec4<f32> en `struct Hair` de hair.wgsl
         assert_eq!(std::mem::size_of::<crate::hair::HairData>(), (2 + 2 * crate::hair::MAX_SHARDS) * 16);
     }

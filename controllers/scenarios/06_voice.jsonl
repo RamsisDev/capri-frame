@@ -1,12 +1,31 @@
-# VOICE · pulsos de habla: la placa brilla un poco más con el nivel (solo con glow > 0, p. ej. construct.json). La boca aún no se dibuja
-{"s":"voice","ttl":120,"set":{"level":0.7}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.3}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.9}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.5}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.8}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.2}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.6}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":1.0}}
-{"wait":110,"s":"voice","ttl":120,"set":{"level":0.4}}
-# Al dejar de llegar datos, el brillo vuelve solo (ttl)
+# VOICE · los 8 visemas en orden (X, MBP, A, E, I, O, U, F/L), 600 ms cada uno
+{"s":"voice","ttl":600,"set":{"viseme":"X"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"MBP"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"A"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"E"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"I"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"O"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"U"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"F/L"}}
+# Habla: visema + nivel con ttl corto; la placa brilla un poco más con el nivel (con glow > 0)
+{"wait":800,"s":"voice","ttl":130,"set":{"viseme":"MBP","level":0.3}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"A","level":0.9}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"E","level":0.6}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"O","level":0.8}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"I","level":0.5}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"F/L","level":0.4}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"U","level":0.6}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"A","level":1.0}}
+{"wait":110,"s":"voice","ttl":130,"set":{"viseme":"MBP","level":0.2}}
+# Emoción: los mismos visemas (X, MBP, A) con sonrisa y con tristeza
+{"wait":900,"s":"face","set":{"expr":"happy"}}
+{"wait":400,"s":"voice","ttl":600,"set":{"viseme":"X"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"MBP"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"A"}}
+{"wait":800,"s":"face","set":{"expr":"sad"}}
+{"wait":400,"s":"voice","ttl":600,"set":{"viseme":"X"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"MBP"}}
+{"wait":600,"s":"voice","ttl":600,"set":{"viseme":"A"}}
+# Al dejar de llegar datos, boca y brillo vuelven solos (ttl)
+{"wait":800,"s":"face","set":{"expr":"neutral"}}
 {"wait":1500}

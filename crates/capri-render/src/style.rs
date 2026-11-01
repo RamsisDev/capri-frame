@@ -38,6 +38,8 @@ pub struct Palette {
     pub eye_ring: Option<String>,
     /// Disco central del ojo, dentro del iris.
     pub pupil: String,
+    /// Boca (polígono bajo la placa).
+    pub mouth: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -80,6 +82,7 @@ impl Default for Palette {
             eye_shell: None,
             eye_ring: None,
             pupil: "#9a9a9a".into(),
+            mouth: "#ffffff".into(),
         }
     }
 }
