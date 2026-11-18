@@ -5,7 +5,7 @@
 //!   --yaw D --pitch D --roll D   giro de la cabeza en grados (0)
 //!   --style NOMBRE|RUTA          assets/styles/NOMBRE.json o un .json (capri-eyes)
 //!   --size WxH                   tamaño de la imagen; con --grid, de cada celda (1200x720 | 480x300)
-//!   --core eyes|full|bolt        núcleo (eyes, como el panel capri-eyes)
+//!   --core eyes|head|full|bolt   núcleo (eyes, como el panel capri-eyes)
 //!   --spikes A --len L           pelo: presencia y largo, 1 = crecido del todo (1, 1)
 //!   --ppr N                      píxeles por R (radio del anillo del ojo); por defecto, lo que deja entrar el pelo entero
 //!   --bg RRGGBB                  fondo (24242c)
@@ -18,9 +18,13 @@
 //!   --mouth-grid                 hoja de bocas: columnas = visemas (x mbp a e i o u fl), filas = curve;
 //!                                implica --face; tamaño de celda por defecto 300x260
 //!   --curves a,b,..              filas de --mouth-grid (1,0,-1)
+//!   --head-only                  cabeza oscura sola: fuerza --core full, sin cuerpo ni pelo (--spikes 0);
+//!                                encuadre de x ∈ [-14, 14] R, y ∈ [-12, 14] R; tamaño 720x720,
+//!                                con --grid 360x360 por celda. Imprime ppr y el centro de la cabeza en px
 //! ```
 //! El centro de la cabeza cae en el centro de la imagen (o de cada celda), salvo en el encuadre
-//! del pelo sin `--ppr`, que centra el pelo. `--ppr` manda sobre cualquier encuadre.
+//! del pelo sin `--ppr`, que centra el pelo, y en `--head-only` sin `--ppr`, que centra la caja
+//! (la cabeza queda 1 R por debajo del centro). `--ppr` manda sobre cualquier encuadre.
 
 use std::time::Instant;
 
@@ -55,6 +59,7 @@ struct Args {
     face: bool,
     mouth_grid: bool,
     curves: Vec<f32>,
+    head_only: bool,
 }
 
 /// Lista de (clave, valor) de un preset de `capri_core::presets`.
@@ -94,6 +99,7 @@ impl Args {
             face: false,
             mouth_grid: false,
             curves: vec![1.0, 0.0, -1.0],
+            head_only: false,
         };
         let mut it = std::env::args().skip(1);
         while let Some(flag) = it.next() {
@@ -131,7 +137,8 @@ impl Args {
                 "--face" => a.face = true,
                 "--mouth-grid" => (a.mouth_grid, a.face) = (true, true),
                 "--curves" => a.curves = list(&value()?)?,
-                "--help" | "-h" => return Err("uso: snapshot <out.png> [--yaw D] [--pitch D] [--roll D] [--style capri-eyes] [--size 1200x720] [--core eyes] [--spikes 1] [--len 1] [--ppr N] [--bg 24242c] [--grid] [--yaws ..] [--pitches ..] [--expr neutral|focus|happy|angry|sad|surprised|sleep] [--viseme x|mbp|a|e|i|o|u|fl] [--open V] [--curve V] [--face] [--mouth-grid] [--curves 1,0,-1]".into()),
+                "--head-only" => a.head_only = true,
+                "--help" | "-h" => return Err("uso: snapshot <out.png> [--yaw D] [--pitch D] [--roll D] [--style capri-eyes] [--size 1200x720] [--core eyes] [--spikes 1] [--len 1] [--ppr N] [--bg 24242c] [--grid] [--yaws ..] [--pitches ..] [--expr neutral|focus|happy|angry|sad|surprised|sleep] [--viseme x|mbp|a|e|i|o|u|fl] [--open V] [--curve V] [--face] [--mouth-grid] [--curves 1,0,-1] [--head-only]".into()),
                 f if f.starts_with("--") => return Err(format!("opción desconocida: {f}")),
                 _ if a.out.is_empty() => a.out = flag,
                 _ => return Err(format!("argumento de más: {flag}")),
@@ -139,6 +146,9 @@ impl Args {
         }
         if a.out.is_empty() {
             return Err("falta la ruta del PNG de salida".into());
+        }
+        if a.head_only {
+            (a.core, a.spikes) = ("full".into(), 0.0);
         }
         Ok(a)
     }
@@ -158,9 +168,13 @@ fn load_style(name: &str) -> Result<Style, String> {
 const HAIR_W: f32 = 48.0;
 const HAIR_H: f32 = 28.0;
 const HAIR_MID: f32 = 4.0;
-/// Encuadre de la cara en R: la cara oscura mide ~9 R de ancho, de y=+2.3 a y=-4.6.
+/// Encuadre de la cara en R: placa y boca (la cara oscura, con sus púas, se sale: ver `--head-only`).
 const FACE_W: f32 = 13.0;
 const FACE_H: f32 = 11.0;
+/// Encuadre de `--head-only` en R: x ∈ [-14, 14], y ∈ [-12, 14] (la púa llega a 13.3 R del centro).
+const HEAD_W: f32 = 28.0;
+const HEAD_H: f32 = 26.0;
+const HEAD_MID: f32 = 1.0;
 
 /// Lo que cambia de una celda a otra: giro y, en la hoja de bocas, visema y curva.
 #[derive(Clone, Copy)]
@@ -204,6 +218,9 @@ fn framing(a: &Args, w: u32, h: u32) -> (f32, f32) {
     if let Some(ppr) = a.ppr {
         return (ppr, 0.0);
     }
+    if a.head_only {
+        return ((w / HEAD_W).min(h / HEAD_H), HEAD_MID);
+    }
     if a.face {
         return ((w / FACE_W).min(h / FACE_H), 0.0);
     }
@@ -218,15 +235,17 @@ fn pose(a: &Args, cell: Cell, w: u32, h: u32) -> Result<State, String> {
     let mut state = State::default();
     mouth(a, cell, &mut state.body.face);
     let b = &mut state.body;
-    let (wf, we, wb) = match a.core.as_str() {
-        "full" => (1.0, 0.0, 0.0),
-        "eyes" => (0.0, 1.0, 0.0),
-        "bolt" => (0.0, 0.0, 1.0),
+    let (wf, we, wb, wh) = match a.core.as_str() {
+        "full" => (1.0, 0.0, 0.0, 0.0),
+        "eyes" => (0.0, 1.0, 0.0, 0.0),
+        "bolt" => (0.0, 0.0, 1.0, 0.0),
+        "head" => (0.0, 0.0, 0.0, 1.0),
         c => return Err(format!("núcleo desconocido: {c}")),
     };
     let m = &mut b.transform.shape_morph;
-    (m.full.value, m.eyes.value, m.bolt.value) = (wf, we, wb);
-    b.silhouette.opacity.value = if a.core == "eyes" { 0.0 } else { 1.0 };
+    (m.full.value, m.eyes.value, m.bolt.value, m.head.value) = (wf, we, wb, wh);
+    // Opacidad de la silueta = alfa del cuerpo (F.limbs1.z); la cara no depende de ella.
+    b.silhouette.opacity.value = if a.core == "eyes" || a.head_only { 0.0 } else { 1.0 };
     b.extensions.fragments.amount.value = 0.0;
     b.extensions.spikes.amount.value = a.spikes;
     b.extensions.spikes.length.value = a.len;
@@ -235,10 +254,10 @@ fn pose(a: &Args, cell: Cell, w: u32, h: u32) -> Result<State, String> {
 
     // Escala y posición para que R mida `ppr` píxeles y el centro de la cabeza quede en el centro.
     // Igual que main.wgsl: centro y escala de la cara según los pesos de los núcleos.
-    let wsum = wf + we + wb;
+    let wsum = wf + we + wb + wh;
     let head_y = 0.245 + 0.006 * state.idle.breath; // skeleton().head.y de silhouette.wgsl
-    let center_y = (head_y * wf + 0.02 * we + 0.27 * wb) / wsum;
-    let fscale = (wf + 2.2 * we + 0.9 * wb) / wsum;
+    let center_y = (head_y * wf + 0.02 * we + 0.27 * wb - 0.06 * wh) / wsum; // HEAD_CORE_Y
+    let fscale = (wf + 2.2 * we + 0.9 * wb + 1.1 * wh) / wsum; // HEAD_CORE_SCALE
     let (ppr, lift_r) = framing(a, w, h);
     let lift = lift_r * ppr / h as f32;
     let scale = ppr / (h as f32 * fscale * EYE_R);
@@ -346,7 +365,13 @@ fn caption(a: &Args) -> String {
 fn run() -> Result<(), String> {
     let a = Args::parse()?;
     let style = load_style(&a.style)?;
-    let cell = if a.mouth_grid { (300, 260) } else if a.grid { (480, 300) } else { (1200, 720) };
+    let cell = match (a.mouth_grid, a.grid, a.head_only) {
+        (true, ..) => (300, 260),
+        (_, true, true) => (360, 360),
+        (_, true, _) => (480, 300),
+        (.., true) => (720, 720),
+        _ => (1200, 720),
+    };
     let (w, h) = a.size.unwrap_or(cell);
     let mut r = Renderer::offscreen(w, h, FORMAT)?;
     let target = r.device().create_texture(&wgpu::TextureDescriptor {
@@ -370,6 +395,13 @@ fn run() -> Result<(), String> {
     let (gw, gh, rgb) = sheet(&tiles, cols, w, h);
     write_png(&a.out, gw, gh, &rgb)?;
     println!("{} · {gw}x{gh} · {}", a.out, caption(&a));
+    if a.head_only {
+        // Centro de la cabeza en px dentro de cada celda (origen arriba a la izquierda, bordes de
+        // píxel: el píxel i cubre [i, i+1)). La celda (fila r, columna c) empieza en (c, r) × paso.
+        let (ppr, lift) = framing(&a, w, h);
+        let (cx, cy) = (w as f32 / 2.0, h as f32 / 2.0 + lift * ppr);
+        println!("head-only · ppr {ppr} · centro {cx} {cy} px · celda {w}x{h} · paso {} {}", w + 1, h + 1);
+    }
     Ok(())
 }
 

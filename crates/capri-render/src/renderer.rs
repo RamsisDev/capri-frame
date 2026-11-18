@@ -1,5 +1,6 @@
 use crate::Frame;
 use crate::hair::{Hair, HairData};
+use crate::head::{Head, HeadData};
 
 /// Las capas WGSL, en orden. Cada archivo = una rama del árbol (o FX).
 const SHADER: &str = concat!(
@@ -7,6 +8,7 @@ const SHADER: &str = concat!(
     include_str!("../shaders/silhouette.wgsl"),
     include_str!("../shaders/extensions.wgsl"),
     include_str!("../shaders/hair.wgsl"),
+    include_str!("../shaders/head.wgsl"),
     include_str!("../shaders/face.wgsl"),
     include_str!("../shaders/fx.wgsl"),
     include_str!("../shaders/main.wgsl"),
@@ -26,6 +28,9 @@ pub struct Renderer {
     /// Pelo procedural: se regenera y se sube solo al cruzar un umbral de giro.
     hair: Hair,
     hair_uniforms: wgpu::Buffer,
+    /// Cara oscura: se proyecta y se sube solo cuando cambia el giro.
+    head: Head,
+    head_uniforms: wgpu::Buffer,
 }
 
 fn instance() -> wgpu::Instance {
@@ -135,6 +140,12 @@ impl Renderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let head_uniforms = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("head"),
+            size: std::mem::size_of::<HeadData>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
         let uniform_entry = |binding| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::FRAGMENT,
@@ -147,7 +158,7 @@ impl Renderer {
         };
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
-            entries: &[uniform_entry(0), uniform_entry(1)],
+            entries: &[uniform_entry(0), uniform_entry(1), uniform_entry(2)],
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
@@ -155,6 +166,7 @@ impl Renderer {
             entries: &[
                 wgpu::BindGroupEntry { binding: 0, resource: uniforms.as_entire_binding() },
                 wgpu::BindGroupEntry { binding: 1, resource: hair_uniforms.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 2, resource: head_uniforms.as_entire_binding() },
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -199,6 +211,8 @@ impl Renderer {
             premultiplied,
             hair: Hair::default(),
             hair_uniforms,
+            head: Head::default(),
+            head_uniforms,
         }
     }
 
@@ -256,6 +270,9 @@ impl Renderer {
         if let Some(hair) = self.hair.update(deg(frame.root2[1]), deg(frame.head[0]), deg(frame.head[1])) {
             self.queue.write_buffer(&self.hair_uniforms, 0, bytemuck::bytes_of(hair));
         }
+        if let Some(head) = self.head.update(frame.root2[1], frame.head[0], frame.head[1]) {
+            self.queue.write_buffer(&self.head_uniforms, 0, bytemuck::bytes_of(head));
+        }
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -296,5 +313,10 @@ mod tests {
         assert_eq!(std::mem::size_of::<crate::Frame>(), (25 + crate::mouth::MAX_VERTS / 2) * 16);
         // 2 + 224 vec4<f32> en `struct Hair` de hair.wgsl
         assert_eq!(std::mem::size_of::<crate::hair::HairData>(), (2 + 2 * crate::hair::MAX_SHARDS) * 16);
+        // 1 + 32 + 64 vec4<f32> en `struct Head` de head.wgsl
+        assert_eq!(
+            std::mem::size_of::<crate::head::HeadData>(),
+            (1 + 2 * crate::head::MAX_PARTS + crate::head::MAX_VERTS / 2) * 16
+        );
     }
 }

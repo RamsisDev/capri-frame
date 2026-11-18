@@ -470,7 +470,7 @@ impl Controller {
         ui.heading("Contexto de la prueba");
         ui.horizontal_wrapped(|ui| {
             ui.monospace("morph → core");
-            for (core, label) in [("eyes", "Ojos"), ("full", "Cuerpo"), ("bolt", "Rayo")] {
+            for (core, label) in [("eyes", "Ojos + boca"), ("head", "Cabeza")] {
                 if ui
                     .selectable_value(&mut self.eyes.core, core, label)
                     .changed()
@@ -478,6 +478,9 @@ impl Controller {
                     self.eyes.scale = if core == "eyes" { 2.0 } else { 1.0 };
                 }
             }
+            // El cuerpo está desactivado por ahora.
+            ui.add_enabled(false, egui::Button::selectable(false, "Cuerpo"))
+                .on_disabled_hover_text("Desactivado por ahora");
         });
         ui.horizontal(|ui| {
             ui.monospace("body → scale");

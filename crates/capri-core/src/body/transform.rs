@@ -27,15 +27,19 @@ pub struct ShapeMorph {
     pub full: Param,
     pub eyes: Param,
     pub bolt: Param,
+    /// Cabeza completa (pelo, cara oscura, ojos y boca) sin cuerpo, centrada.
+    pub head: Param,
 }
 
 impl Default for TransformController {
     fn default() -> Self {
         Self {
             shape_morph: ShapeMorph {
-                full: Param::with_speed(1.0, 6.0),
+                // El cuerpo está desactivado por ahora: se arranca con la cabeza sola.
+                full: Param::with_speed(0.0, 6.0),
                 eyes: Param::with_speed(0.0, 6.0),
                 bolt: Param::with_speed(0.0, 6.0),
+                head: Param::with_speed(1.0, 6.0),
             },
             pos_x: Param::with_speed(0.0, 8.0),
             pos_y: Param::with_speed(0.0, 8.0),
@@ -54,6 +58,7 @@ impl Node for TransformController {
         f(Morph, "core.full", &mut self.shape_morph.full);
         f(Morph, "core.eyes", &mut self.shape_morph.eyes);
         f(Morph, "core.bolt", &mut self.shape_morph.bolt);
+        f(Morph, "core.head", &mut self.shape_morph.head);
         f(Morph, "opacity", &mut self.opacity);
         f(Body, "pos.x", &mut self.pos_x);
         f(Body, "pos.y", &mut self.pos_y);

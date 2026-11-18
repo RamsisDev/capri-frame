@@ -74,11 +74,14 @@ Una clave tiene **un solo stream dueño** (hay un test que lo garantiza): dos st
 
 | Núcleo | Qué queda | Cómo pedirlo |
 |--------|-----------|--------------|
-| `full` | Cuerpo completo + cabeza (pelo, cara, ojos) | `{"s":"morph","set":{"core":"full"}}` |
-| `eyes` | Solo los ojos con su placa, grandes | `{"core":"eyes"}` |
+| `head` | Cabeza completa (pelo, cara oscura, ojos, boca) sin cuerpo, centrada. Es el de arranque | `{"s":"morph","set":{"core":"head"}}` |
+| `full` | Cuerpo completo + cabeza (pelo, cara, ojos). Desactivado en el panel por ahora | `{"core":"full"}` |
+| `eyes` | Solo los ojos con su placa y la boca, grandes | `{"core":"eyes"}` |
 | `bolt` | Rayo en zigzag fragmentado, ojos arriba | `{"core":"bolt"}` |
 
-Los núcleos son **pesos** (`core.full`, `core.eyes`, `core.bolt`) que se mezclan: cambiar de núcleo
+El panel ofrece `Ojos + boca` y `Cabeza`; `Cuerpo` se ve pero está desactivado.
+
+Los núcleos son **pesos** (`core.full`, `core.eyes`, `core.bolt`, `core.head`) que se mezclan: cambiar de núcleo
 es un morph, no un corte, y la entidad puede dejar el cuerpo a medio camino (`core.full: 0.5, core.bolt: 0.5`).
 
 ---
@@ -115,7 +118,7 @@ el árbol y se componen en `main.wgsl`:
    extensions.wgsl  fragmentos, rayo
    main.wgsl        mezcla de núcleos (mezcla de campos de distancia = morph orgánico)
                     volumen falso: normal del gradiente del SDF + luz que sigue al yaw
-   face.wgsl        cabeza: pelo (hair.wgsl), cara oscura, ojos con su placa
+   face.wgsl        cabeza: pelo (hair.wgsl), cara oscura (head.wgsl), ojos con su placa
                     2D nítido, pegado a la cabeza, con la boca bajo la placa
    fx.wgsl          glitch, scanlines
 ```
@@ -194,14 +197,28 @@ delante: pelo, cara oscura (la base), placa, boca, ojos.
 - **Manchas** (`hair_glint`): puntos sobre el pelo, más densos y grandes cerca de un foco. En el
   tramo central el foco está en el centro del pelo; en los demás, hacia un punto cardinal del
   plano del pelo, casi siempre arriba a la derecha y nunca por debajo.
-- **Cara** (`face`): la base de la placa. Contorno normal: frente y sienes rectas, mandíbula
-  redondeada hasta la barbilla. Va en la misma esfera que la placa y la contiene con margen, así
-  al girar la placa nunca se sale de la cara. Pesa con el núcleo `full`; en `eyes` y `bolt` no se
-  dibuja.
+- **Cara** (`face`, `src/head.rs` + `head.wgsl`): la base oscura de la placa, con la silueta del
+  refsheet del personaje (giro horizontal −90..90 y vertical −45..45). Es un sólido 3D hecho de
+  12 piezas convexas: cráneo con la cara plana, mandíbula adelantada, cuello con base en punta,
+  picos de corona, cuernos que salen de una muesca en V profunda, púas bajas casi horizontales (lo más
+  ancho, ±8 R) y dos púas en la nuca que solo se ven de perfil. La púa central del refsheet
+  (vertical hasta y ≈ 10 R) se quitó a propósito.
+  - **Proyección**: el casco convexo de una pieza proyectada es el casco de sus puntos
+    proyectados. La CPU proyecta los puntos de cada pieza con el giro de la cabeza, toma el casco
+    2D y sube los polígonos solo cuando cambia el giro. El shader pinta la unión (distancia mínima
+    a polígonos convexos exactos). Las piezas se solapan en 3D, así que no hay costuras.
+  - **Medida**: con el borde superior de la máscara de la referencia igual al ancho de la placa,
+    IoU 0.95 de frente, 0.87–0.88 a ±45° y 0.88–0.89 de perfil (con la púa central; sin ella
+    baja, porque la referencia sí la tiene). La referencia vertical es
+    incoherente con la horizontal y pesa menos.
+  - **Contiene la placa y la boca abierta** sobre la esfera con margen, gire como gire mientras
+    mira al frente (test). Se sale de la esfera de la cabeza: las púas que quedan fuera del disco
+    de la cabeza van siempre sobre el pelo. Pesa con los núcleos `full` y `head`; en `eyes` y `bolt` no se
+    dibuja.
 - **Pelo delante de la cara al girar**: el pelo envuelve la cabeza como una cáscara mayor (8 R).
   Donde el punto visible de esa cáscara cae a más de ~68° del frente de la cara, el pelo se pinta
-  encima de la cara; pasado el perfil termina de cerrarla. De frente nunca la tapa, y de espalda
-  no asoman tiras de cara por el borde de la cabeza.
+  encima de la cara (solo dentro del disco de la cabeza); pasado el perfil termina de cerrarla.
+  De frente nunca la tapa, y de espalda no asoman tiras de cara por el borde de la cabeza.
 
 Partir esto en passes reales (silueta a media resolución, etc.) es posible sin tocar el árbol.
 Hoy no hace falta.

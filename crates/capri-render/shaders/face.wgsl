@@ -92,16 +92,6 @@ fn head_stretch(to_head: mat3x3<f32>, w: vec2<f32>, z: f32) -> f32 {
   return clamp(max(length(dx), length(dy)), 1.0, 8.0);
 }
 
-// Cara: la superficie oscura (`face`), base de la placa. Contorno normal: frente y sienes rectas,
-// mandíbula redondeada hasta la barbilla. Va en la misma esfera que la placa y contiene la placa
-// con margen, así al girar la placa nunca se sale de la cara. Todo su contorno queda dentro de
-// HEAD_R (el punto más lejano está a ~4.9 R).
-fn sd_face(u: vec2<f32>) -> f32 {
-  let upper = sd_box(u - vec2<f32>(0.0, 0.65), vec2<f32>(4.5, 1.65), 0.9);
-  let jaw = sd_ellipse(u - vec2<f32>(0.0, -0.4), vec2<f32>(4.45, 4.15));
-  return smin(upper, jaw, 0.6);
-}
-
 // Boca: polígono de aristas rectas que llega ya mezclado de la CPU (src/mouth.rs: visemas +
 // emoción), en unidades R con origen en `F.mouth_info.yz` del espacio de la placa. Los trazos
 // finos (X, MBP) son el mismo polígono aplastado.
@@ -292,14 +282,17 @@ fn face_layer(p: vec2<f32>, center: vec2<f32>, ang: f32, fscale: f32, head_w: f3
   let hair = hair_layer(w, pxu);
   col = over(col, hair.back);
   let shell = to_head * vec3<f32>(w, sqrt(max(HAIR_SHELL * HAIR_SHELL - dot(w, w), 0.0)));
+  // Solo dentro del disco de la cabeza: las púas de la cara que se salen de él quedan sobre el pelo.
   // Pasado el perfil (la cara ya mira hacia atrás) el pelo termina de cerrar el borde.
   let turned = 1.0 - smoothstep(-0.25, -0.05, cos(F.root2.y) * cos(F.head.x));
-  let hair_over = max(aa(shell.z - HAIR_LINE * HAIR_SHELL, pxu * 1.5), turned);
+  let hair_over = max(aa(shell.z - HAIR_LINE * HAIR_SHELL, pxu * 1.5) * head, turned);
 
-  // En el hemisferio delantero de la cabeza: cara oscura (base), halo, placa y ojos.
+  // Cara oscura (base): sólido propio con púas, ya proyectado (head.wgsl); se sale de la esfera.
+  col = over(col, vec4<f32>(F.col_face.rgb, aa(sd_head(w, pxu), pxu) * head_w));
+
+  // En el hemisferio delantero de la cabeza: halo, placa y ojos.
   let u = front.xy;                      // espacio de placa, unidades R
   let facing = step(0.0, front.z) * head;
-  col = over(col, vec4<f32>(F.col_face.rgb, aa(sd_face(u), pxf) * facing * head_w));
 
   let dm = sd_box(u, PLATE_HALF, PLATE_CORNER);
   let plate = aa(dm, pxf) * facing;

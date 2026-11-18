@@ -39,7 +39,7 @@ se añade al cuerpo ni al controlador CLI. Usa el mismo WebSocket y los mismos s
   desconecta, reintenta cada 2 s mientras la casilla siga activa (nivel 0 entretanto); los
   desbordes de búfer (xruns) solo se cuentan. Prueba manual del micrófono:
   `cargo test -p capri-ctl --features visual --bin capri-eyes -- --ignored mic --nocapture`.
-- Ojos, cuerpo o rayo y zoom para comparar el mismo ajuste en contexto.
+- Ojos + boca o cabeza completa (el cuerpo está desactivado por ahora) y zoom para comparar el mismo ajuste en contexto.
 - Claves exactas junto a cada control, JSON copiable y último mensaje enviado.
 - **Aprobar y guardar** crea `controllers/captures/eyes-<marca de tiempo>.jsonl`, sin sobrescribir
   escenarios. Reprodúcelo con `cargo run -p capri-ctl -- play controllers/captures/<archivo>.jsonl`.

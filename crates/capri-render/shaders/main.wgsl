@@ -13,12 +13,18 @@ fn form_sdf(p: vec2<f32>, s: Skel) -> f32 {
   let wf = F.cores.x;
   let we = F.cores.y;
   let wb = F.cores.z;
-  let wsum = max(wf + we + wb, 1e-3);
+  let wh = F.cores.w;
+  let wsum = max(wf + we + wb + wh, 1e-3);
   let body = sd_silhouette(p, s);
   let bolt = sd_bolt(p);
-  // Mezclar campos de distancia = morph orgánico. El núcleo `eyes` encoge el volumen a nada.
-  return (body * wf + bolt * wb) / max(wf + wb, 1e-3) + (we / wsum) * 0.3;
+  // Mezclar campos de distancia = morph orgánico. Los núcleos `eyes` y `head` encogen el volumen
+  // a nada.
+  return (body * wf + bolt * wb) / max(wf + wb, 1e-3) + ((we + wh) / wsum) * 0.3;
 }
+
+// Núcleo `head`: centro de la cabeza y escala de la cara.
+const HEAD_CORE_Y: f32 = -0.06;
+const HEAD_CORE_SCALE: f32 = 1.1;
 
 @fragment
 fn fs_main(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
@@ -39,7 +45,8 @@ fn fs_main(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
   let wf = F.cores.x;
   let we = F.cores.y;
   let wb = F.cores.z;
-  let wsum = max(wf + we + wb, 1e-3);
+  let wh = F.cores.w;
+  let wsum = max(wf + we + wb + wh, 1e-3);
   let bolt_w = wb / max(wf + wb, 1e-3);
   let body_alpha = F.limbs1.z;
 
@@ -65,11 +72,13 @@ fn fs_main(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
   col = over(col, vec4<f32>(bcol, aa(d, px) * body_alpha));
   col = over(col, vec4<f32>(energy * 1.2, aa(dfr, px) * body_alpha));
 
-  // ── Capa de cara: sigue a la cabeza en `full`, centrada en `eyes`, arriba del rayo en `bolt`
+  // ── Capa de cara: sigue a la cabeza en `full`, centrada en `eyes`, arriba del rayo en `bolt`.
+  // En `head` la cabeza va sola con su pelo, un poco bajo el centro (el pelo sube más que baja).
   let c_full = vec2<f32>(s.head.x * squash, s.head.y);
-  let center = (c_full * wf + vec2<f32>(0.0, 0.02) * we + vec2<f32>(0.0, 0.27) * wb) / wsum;
-  let fscale = (1.0 * wf + 2.2 * we + 0.9 * wb) / wsum;
-  col = over(col, face_layer(p, center, s.head_rot * wf / wsum, fscale, wf / wsum, px));
+  let center = (c_full * wf + vec2<f32>(0.0, 0.02) * we + vec2<f32>(0.0, 0.27) * wb
+    + vec2<f32>(0.0, HEAD_CORE_Y) * wh) / wsum;
+  let fscale = (1.0 * wf + 2.2 * we + 0.9 * wb + HEAD_CORE_SCALE * wh) / wsum;
+  col = over(col, face_layer(p, center, s.head_rot * wf / wsum, fscale, (wf + wh) / wsum, px));
 
   // ── FX
   var rgb = col.rgb * scanlines(frag.y / res.y);

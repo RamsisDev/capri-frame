@@ -338,6 +338,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "capri-core",
+ "capri-protocol",
  "naga",
  "png",
  "pollster",

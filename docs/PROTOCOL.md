@@ -52,8 +52,8 @@ WebSocket en `ws://127.0.0.1:7777`. Cada mensaje de texto es **un sobre** o **un
 
 | Clave | Base | Qué hace |
 |-------|------|----------|
-| `core` | — | preset de núcleo: `full` `eyes` `bolt` |
-| `core.full`, `core.eyes`, `core.bolt` | 1, 0, 0 | pesos crudos de cada núcleo (se mezclan) |
+| `core` | — | preset de núcleo: `full` `eyes` `bolt` `head` |
+| `core.full`, `core.eyes`, `core.bolt`, `core.head` | 0, 0, 0, 1 | pesos crudos de cada núcleo (se mezclan) |
 | `silhouette` | 1 | opacidad del cuerpo (la cara queda) |
 | `opacity` | 1 | opacidad de todo |
 | `spikes`, `spikes.len` | 1, 1 | presencia y tamaño del pelo |

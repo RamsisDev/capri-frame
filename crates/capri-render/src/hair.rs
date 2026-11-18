@@ -33,7 +33,7 @@ pub const ROLL_STEP: f32 = 15.0;
 /// Margen para dejar un tramo: evita que el pelo salte de forma en el borde de un umbral.
 const HYSTERESIS: f32 = 1.5;
 /// Radio de la esfera de la cabeza (= `HEAD_R` de `face.wgsl`).
-const HEAD_R: f32 = 5.4;
+pub(crate) const HEAD_R: f32 = 5.4;
 /// Profundidad del centro de la masa: detrás del centro de la cabeza, así al girar se corre al
 /// lado contrario de la cara.
 const MASS_Z: f32 = -2.2;
@@ -88,7 +88,7 @@ fn bucket(angle: f32, step: f32, current: Option<i32>) -> i32 {
     }
 }
 
-type V2 = [f32; 2];
+pub(crate) type V2 = [f32; 2];
 
 fn add(a: V2, b: V2) -> V2 {
     [a[0] + b[0], a[1] + b[1]]
@@ -100,18 +100,18 @@ fn rot(v: V2, (s, c): (f32, f32)) -> V2 {
 
 /// Giro de la cabeza (igual que `head_inverse` de `face.wgsl`, en sentido directo):
 /// cabeza → pantalla.
-struct Turn {
+pub(crate) struct Turn {
     yaw: (f32, f32),
     pitch: (f32, f32),
     roll: (f32, f32),
 }
 
 impl Turn {
-    fn new(yaw: f32, pitch: f32, roll: f32) -> Self {
+    pub(crate) fn new(yaw: f32, pitch: f32, roll: f32) -> Self {
         Self { yaw: yaw.sin_cos(), pitch: pitch.sin_cos(), roll: roll.sin_cos() }
     }
 
-    fn project(&self, [x, y, z]: [f32; 3]) -> V2 {
+    pub(crate) fn project(&self, [x, y, z]: [f32; 3]) -> V2 {
         let ((sr, cr), (sp, cp), (sy, cy)) = (self.roll, self.pitch, self.yaw);
         let (x, y) = (cr * x - sr * y, sr * x + cr * y);
         let (y, z) = (cp * y + sp * z, -sp * y + cp * z);

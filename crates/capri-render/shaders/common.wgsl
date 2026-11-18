@@ -5,7 +5,7 @@ struct Frame {
   res: vec4<f32>,      // ancho, alto, tiempo, premultiplicado
   root: vec4<f32>,     // pos.x, pos.y, rot, opacidad
   root2: vec4<f32>,    // escala, yaw, respiración, parpadeo
-  cores: vec4<f32>,    // full, eyes, bolt, -
+  cores: vec4<f32>,    // full, eyes, bolt, head
   eyes: vec4<f32>,     // abierto izq, abierto der, mirada x, mirada y
   face: vec4<f32>,     // brillo placa, boca abierta, curva boca, tamaño ojo izq
   face2: vec4<f32>,    // tamaño ojo der, voz, curva al cerrar, -

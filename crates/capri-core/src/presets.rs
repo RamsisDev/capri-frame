@@ -55,18 +55,21 @@ pub fn pose(name: &str) -> Option<Preset> {
     })
 }
 
-/// `morph.core`: los 3 núcleos.
+/// `morph.core`: los 4 núcleos.
 /// - `full`: cuerpo completo.
-/// - `eyes`: solo los ojos (con su placa).
+/// - `eyes`: solo los ojos (con su placa) y la boca.
 /// - `bolt`: rayo fragmentado.
+/// - `head`: cabeza completa (pelo y cara oscura) sin cuerpo.
 pub fn core(name: &str) -> Option<Preset> {
     Some(match name {
-        "full" => &[("core.full", 1.0), ("core.eyes", 0.0), ("core.bolt", 0.0), ("silhouette", 1.0),
-                    ("spikes", 1.0), ("fragments", 0.0)],
-        "eyes" => &[("core.full", 0.0), ("core.eyes", 1.0), ("core.bolt", 0.0), ("silhouette", 0.0),
-                    ("spikes", 0.0), ("fragments", 0.0)],
-        "bolt" => &[("core.full", 0.0), ("core.eyes", 0.0), ("core.bolt", 1.0), ("silhouette", 1.0),
-                    ("spikes", 0.0), ("fragments", 0.7)],
+        "full" => &[("core.full", 1.0), ("core.eyes", 0.0), ("core.bolt", 0.0), ("core.head", 0.0),
+                    ("silhouette", 1.0), ("spikes", 1.0), ("fragments", 0.0)],
+        "eyes" => &[("core.full", 0.0), ("core.eyes", 1.0), ("core.bolt", 0.0), ("core.head", 0.0),
+                    ("silhouette", 0.0), ("spikes", 0.0), ("fragments", 0.0)],
+        "bolt" => &[("core.full", 0.0), ("core.eyes", 0.0), ("core.bolt", 1.0), ("core.head", 0.0),
+                    ("silhouette", 1.0), ("spikes", 0.0), ("fragments", 0.7)],
+        "head" => &[("core.full", 0.0), ("core.eyes", 0.0), ("core.bolt", 0.0), ("core.head", 1.0),
+                    ("silhouette", 0.0), ("spikes", 1.0), ("fragments", 0.0)],
         _ => return None,
     })
 }
